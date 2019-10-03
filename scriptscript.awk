@@ -271,7 +271,8 @@ function is_last_rule(rule) {
     return rule == ACCEPT_STATE
 }
 
-function output_data_check(rule, tabs,    ret) {
+function output_data_check(rule, tabs,    sm_var, ret) {
+    sm_var = CURRENT_STATE_VAR
     ret = (rule != ACCEPT_STATE)
     
     if (ret) {
@@ -282,44 +283,47 @@ function output_data_check(rule, tabs,    ret) {
     return ret
 }
 
-function output_first(arr_input,    sm_var) {
+function output_first(arr_input,    sm_var, tmp) {
     sm_var = CURRENT_STATE_VAR
     
     output_open_if(sm_var " == \"\"", 1)
-        output_open_if("next_state == " output_get_rule_name(arr_input[1]), 2)
+        
+        tmp = output_get_rule_name(arr_input[1])
+        output_open_if("next_state == " tmp, 2)
             if (!output_data_check(arr_input[1], 3)) 
                 output_line(sm_var " = next_state", 3)
         output_close_block(2)
-        output_line("else " PARSE_ERR_FNAME\
-            "(" output_get_rule_name(arr_input[1]) ", next_state)", 2)
+        output_line("else " PARSE_ERR_FNAME "(" tmp ", next_state)", 2)
+        
     output_close_block(1)
 }
 
-function output_three(arr_input,    sm_var) {
+function output_three(arr_input,    sm_var, tmp) {
     sm_var = CURRENT_STATE_VAR
     
-    output_open_else_if(sm_var " == " output_get_rule_name(arr_input[1]), 1)
+    tmp = output_get_rule_name(arr_input[1])
+    output_open_else_if(sm_var " == " tmp, 1)
         
-    output_open_if("next_state == "\
-        output_get_rule_name(arr_input[3]), 2)
-        if (!output_data_check(arr_input[1], 3)) 
+    tmp = output_get_rule_name(arr_input[3])
+    output_open_if("next_state == " tmp, 2)
+        if (!output_data_check(arr_input[3], 3)) 
            output_line(sm_var " = next_state", 3)
     output_close_block(2)
 }
 
-function output_end_three(arr_input) {
-    output_line("else " PARSE_ERR_FNAME\
-        "(" output_get_rule_name(arr_input[3]) ", next_state)", 2)
+function output_end_three(arr_input,    tmp) {
+    tmp = output_get_rule_name(arr_input[3])
+    output_line("else " PARSE_ERR_FNAME "(" tmp ", next_state)", 2)
 }
 
 function output_five(arr_input,    sm_var, tmp) {
     sm_var = CURRENT_STATE_VAR
 
     output_three(arr_input)
-    output_open_else_if("next_state == "\
-        output_get_rule_name(arr_input[5]), 2)
+    tmp = output_get_rule_name(arr_input[5])
+    output_open_else_if("next_state == " tmp, 2)
         
-        if (!output_data_check(arr_input[1], 3)) 
+        if (!output_data_check(arr_input[5], 3)) 
             output_line(sm_var " = next_state", 3)
             
     output_close_block(2)
@@ -397,14 +401,15 @@ function output_begin(    i, end, arr) {
     output_close_tag(TAG_START)
 }
 
-function output_end() {
+function output_end(    tmp) {
     output_open_tag(TAG_END)
     output_line("END {")
     output_open_if("!" GLOBAL_ERR_FLAG, 1)
-        output_line("if (" CURRENT_STATE_VAR " != "\
-            output_get_rule_name(ACCEPT_STATE) ")", 2)
-            output_line(ERROR_RAISE_FNAME "(NR,\"file should end with '\" "\
-                    output_get_rule_name(ACCEPT_STATE) " \"'\")", 3)
+        
+        tmp = output_get_rule_name(ACCEPT_STATE)
+        output_line("if (" CURRENT_STATE_VAR " != " tmp ")", 2)
+            output_line(ERROR_RAISE_FNAME\
+                "(NR, \"file should end with '\" " tmp " \"'\")", 3)
             output_line("else",2)
                 output_line( AWK_END "()", 3)
         output_close_block(1)

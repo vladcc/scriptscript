@@ -72,45 +72,45 @@ function state_transition(next_state) {
 	if (__sm_now__ == "") {
 		if (next_state == RULE_FNAME) {
 			if (NF < 2) no_data_error(next_state)
-			else  = next_state
+			else __sm_now__ = next_state
 		}
 		else parse_error(RULE_FNAME, next_state)
 	}
 	else if (__sm_now__ == RULE_FNAME) {
 		if (next_state == RULE_INPUT) {
 			if (NF < 2) no_data_error(next_state)
-			else  = next_state
+			else __sm_now__ = next_state
 		}
 		else parse_error(RULE_INPUT, next_state)
 	}
 	else if (__sm_now__ == RULE_INPUT) {
 		if (next_state == RULE_MATCH_WITH) {
 			if (NF < 2) no_data_error(next_state)
-			else  = next_state
+			else __sm_now__ = next_state
 		}
 		else parse_error(RULE_MATCH_WITH, next_state)
 	}
 	else if (__sm_now__ == RULE_MATCH_WITH) {
 		if (next_state == RULE_MATCH_HOW) {
 			if (NF < 2) no_data_error(next_state)
-			else  = next_state
+			else __sm_now__ = next_state
 		}
 		else parse_error(RULE_MATCH_HOW, next_state)
 	}
 	else if (__sm_now__ == RULE_MATCH_HOW) {
-		if (next_state == RULE_GENERATE) {
+		if (next_state == RULE_INPUT) {
 			if (NF < 2) no_data_error(next_state)
-			else  = next_state
+			else __sm_now__ = next_state
 		}
-		else if (next_state == RULE_INPUT) {
-			if (NF < 2) no_data_error(next_state)
-			else  = next_state
+		else if (next_state == RULE_GENERATE) {
+			__sm_now__ = next_state
 		}
-		else parse_error(RULE_GENERATE "' or '" RULE_INPUT, next_state)
+		else parse_error(RULE_INPUT "' or '" RULE_GENERATE, next_state)
 	}
 	else if (__sm_now__ == RULE_GENERATE) {
 		if (next_state == RULE_FNAME) {
-			__sm_now__ = next_state
+			if (NF < 2) no_data_error(next_state)
+			else __sm_now__ = next_state
 		}
 		else parse_error(RULE_FNAME, next_state)
 	}
@@ -144,7 +144,7 @@ BEGIN {
 END {
 	if (!__error_happened__) {
 		if (__sm_now__ != RULE_GENERATE)
-			error_raise(NR,"file should end with '" RULE_GENERATE "'")
+			error_raise(NR, "file should end with '" RULE_GENERATE "'")
 		else
 			awk_END()
 	}
