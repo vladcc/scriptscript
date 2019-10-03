@@ -21,7 +21,6 @@ function error_bad_rule(rule, str) {
     print "and contain only letters, numbers, and underscores"
 }
 
-function error_two_eofs(str) {print "fileds 3 and 5 are both EOF"}
 function error_raise() {g_error_happened = 1}
 function error_happened() {return g_error_happened}
 function error_set(err_no, str) {
@@ -35,8 +34,6 @@ function error_set(err_no, str) {
         error_no_bar(str)
     else if (err_no == ERR_BAD_RULE)
         error_bad_rule(str)
-    else if (err_no == ERR_TWO_EOFS)
-        error_two_eofs(str)
     else
         print "Unknown error: '" err_no "'"
     
@@ -85,20 +82,10 @@ function syntax_check_3() {
     syntax_match($3, WORD_RE, ERR_BAD_RULE)
 }
 
-function syntax_check_5(    tmp) {
+function syntax_check_5() {
     syntax_check_3()
     syntax_match($4, BAR_RE, ERR_NO_BAR)
     syntax_match($5, WORD_RE, ERR_BAD_RULE)
-    
-    if ($3 == EOF_STR) {
-        if ($3 == $5)
-            error_set(ERR_TWO_EOFS)
-        else {
-            tmp = $5
-            $5 = $3
-            $3 = tmp
-        }
-    }
 }
 
 function syntax_match(str, regexp, error) {
@@ -166,7 +153,7 @@ function output_emit_rule(str,    tmp) {
     
     output_line()
     output_line("$1 == " output_get_rule_name(str) " {"\
-        STATE_TRASITION_FNAME "($1); " tmp "()}")
+        STATE_TRANSITION_FNAME "($1); " tmp "()}")
     output_open_function(tmp)
     output_line()
     output_close_block()
@@ -236,25 +223,25 @@ function output_print_lib() {
 }
 
 function output_divide(    i, end) {
-    printf("#")
+    output_string("#")
     end = 78
-    for (i = 1; i <= end; ++i) { printf("=") }
-    printf("#")
+    for (i = 1; i <= end; ++i) { output_string("=") }
+    output_string("#")
     output_line()
     
-    printf("#")
+    output_string("#")
     end = 24
-    for (i = 1; i <= end; ++i) { printf(" ") }
-    printf("machine generated parser below")
+    for (i = 1; i <= end; ++i) { output_string(" ") }
+    output_string("machine generated parser below")
     end = 24
-    for (i = 1; i <= end; ++i) { printf(" ") }
-    printf("#")
+    for (i = 1; i <= end; ++i) { output_string(" ") }
+    output_string("#")
     output_line()
     
-    printf("#")
+    output_string("#")
     end = 78
-    for (i = 1; i <= end; ++i) { printf("=") }
-    printf("#")
+    for (i = 1; i <= end; ++i) { output_string("=") }
+    output_string("#")
     output_line()
     output_line()
 }
@@ -280,14 +267,19 @@ function output_no_data_error() {
     output_close_block()
 }
 
-function is_rule_eof(rule,    i, end, fields, arr_input) {
-    end = input_get_line_count()
-    for (i = 1; i <= end; ++i) {
-        fields = split(input_get_line(i), arr_input)
-        
-        if (rule == arr_input[1])
-            return ((arr_input[3] == EOF_STR) || (arr_input[5] == EOF_STR))
+function is_last_rule(rule) {
+    return rule == ACCEPT_STATE
+}
+
+function output_data_check(rule, tabs,    ret) {
+    ret = (rule != ACCEPT_STATE)
+    
+    if (ret) {
+        output_line("if (NF < 2) " NO_DATA_ERR_FNAME "(next_state)", tabs)
+        output_line("else " sm_var " = next_state", tabs)
     }
+    
+    return ret
 }
 
 function output_first(arr_input,    sm_var) {
@@ -295,12 +287,7 @@ function output_first(arr_input,    sm_var) {
     
     output_open_if(sm_var " == \"\"", 1)
         output_open_if("next_state == " output_get_rule_name(arr_input[1]), 2)
-        
-            if (!is_rule_eof(arr_input[1])) {
-                output_line("if (NF < 2) " NO_DATA_ERR_FNAME "(next_state)", 3)
-                output_line("else " sm_var " = next_state", 3)
-            }
-            else
+            if (!output_data_check(arr_input[1], 3)) 
                 output_line(sm_var " = next_state", 3)
         output_close_block(2)
         output_line("else " PARSE_ERR_FNAME\
@@ -313,21 +300,11 @@ function output_three(arr_input,    sm_var) {
     
     output_open_else_if(sm_var " == " output_get_rule_name(arr_input[1]), 1)
         
-    if (arr_input[3] == EOF_STR) {
-        output_line(sm_var " = \"\"", 3)
-        output_close_block(2)
-    }
-    else {
-        output_open_if("next_state == "\
-            output_get_rule_name(arr_input[3]), 2)
-            if (!is_rule_eof(arr_input[3])) {
-                output_line("if (NF < 2) " NO_DATA_ERR_FNAME "(next_state)", 3)
-                output_line("else " sm_var " = next_state", 3)
-            }
-            else
-               output_line(sm_var " = next_state", 3)
-        output_close_block(2)
-    }
+    output_open_if("next_state == "\
+        output_get_rule_name(arr_input[3]), 2)
+        if (!output_data_check(arr_input[1], 3)) 
+           output_line(sm_var " = next_state", 3)
+    output_close_block(2)
 }
 
 function output_end_three(arr_input) {
@@ -338,29 +315,20 @@ function output_end_three(arr_input) {
 function output_five(arr_input,    sm_var, tmp) {
     sm_var = CURRENT_STATE_VAR
 
-   output_three(arr_input)
-    
-    if (arr_input[5] != EOF_STR) {
-        output_open_else_if("next_state == "\
-            output_get_rule_name(arr_input[5]), 2)
+    output_three(arr_input)
+    output_open_else_if("next_state == "\
+        output_get_rule_name(arr_input[5]), 2)
+        
+        if (!output_data_check(arr_input[1], 3)) 
+            output_line(sm_var " = next_state", 3)
             
-            if (!is_rule_eof(arr_input[5])) {
-                output_line("if (NF < 2) " NO_DATA_ERR_FNAME "(next_state)", 3)
-                output_line("else " sm_var " = next_state", 3)
-            }
-            else
-                output_line(sm_var " = next_state", 3)
-
-        output_close_block(2)
-    }
+    output_close_block(2)
 }
 
 function output_end_five(arr_input) {
     output_string("else " PARSE_ERR_FNAME "(", 2)
-    output_string(output_get_rule_name(arr_input[3]))
-    
-    if (arr_input[5] != EOF_STR)
-        output_string(" \"' or '\" " output_get_rule_name(arr_input[5]))
+    output_string(output_get_rule_name(arr_input[3]))s
+    output_string(" \"' or '\" " output_get_rule_name(arr_input[5]))
     output_line(", next_state)")
 }
 
@@ -371,7 +339,7 @@ function output_state_machine(    i, lines, fields, sm_var, arr_input) {
     output_error_raise()
     output_parse_error()
     output_no_data_error()
-    output_open_function(STATE_TRASITION_FNAME, "next_state")
+    output_open_function(STATE_TRANSITION_FNAME, "next_state")
     
     fields = split(input_get_line(1), arr_input)
     output_first(arr_input)
@@ -404,9 +372,10 @@ function output_rules(    i, end, arr, fields) {
     for (i = 1; i <= end; ++i) {
         fields = split(input_get_line(i), arr)
         output_line("$1 ~ " output_get_rule_name(arr[1]) " {"\
-            STATE_TRASITION_FNAME "($1); "\
+            STATE_TRANSITION_FNAME "($1); "\
             output_get_handler_name(arr[1]) "(); next}")
     }
+    
     output_line("$0 ~ /^$/ {next} # ignore empty lines")
     output_line("{" ERROR_RAISE_FNAME "(NR, \"'\" $1 \"' unknown\")}")
     output_close_tag(TAG_INPUT)
@@ -434,9 +403,8 @@ function output_end() {
     output_open_if("!" GLOBAL_ERR_FLAG, 1)
         output_line("if (" CURRENT_STATE_VAR " != "\
             output_get_rule_name(ACCEPT_STATE) ")", 2)
-            output_line(ERROR_RAISE_FNAME "(NR,\\", 3)
-            output_line("\"file should end with '\" "\
-                    output_get_rule_name(ACCEPT_STATE) " \"'\")", 4)
+            output_line(ERROR_RAISE_FNAME "(NR,\"file should end with '\" "\
+                    output_get_rule_name(ACCEPT_STATE) " \"'\")", 3)
             output_line("else",2)
                 output_line( AWK_END "()", 3)
         output_close_block(1)
@@ -484,7 +452,7 @@ BEGIN {
     AWK_BEGIN = "awk_BEGIN"
     AWK_END = "awk_END"
     
-    STATE_TRASITION_FNAME = "state_transition"
+    STATE_TRANSITION_FNAME = "state_transition"
     PARSE_ERR_FNAME = "parse_error"
     NO_DATA_ERR_FNAME = "no_data_error"
     ERROR_RAISE_FNAME = "error_raise"
@@ -496,11 +464,9 @@ BEGIN {
     ERR_NO_ARROW = 1
     ERR_NO_BAR = 2
     ERR_BAD_RULE = 3
-    ERR_TWO_EOFS = 4
     
     YES = "yes"
     NO = "no"
-    EOF_STR = "EOF"
     start_set_awk_print_tags()
 }
 # </start>

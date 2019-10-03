@@ -1,6 +1,6 @@
 # math function tests
 fname -> input
-input -> match_with 
+input -> match_with
 match_with -> match_how
 match_how -> generate | input
-generate -> fname | EOF 
+generate -> fname
