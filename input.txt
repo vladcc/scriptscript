@@ -2,5 +2,5 @@
 fname -> input
 input -> match_with 
 match_with -> match_how
-match_how -> input | generate
+match_how -> generate | input
 generate -> fname | EOF 
