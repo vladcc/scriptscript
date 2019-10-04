@@ -124,7 +124,7 @@ $1 ~ RULE_INPUT {state_transition($1); handle_input(); next}
 $1 ~ RULE_MATCH_WITH {state_transition($1); handle_match_with(); next}
 $1 ~ RULE_MATCH_HOW {state_transition($1); handle_match_how(); next}
 $1 ~ RULE_GENERATE {state_transition($1); handle_generate(); next}
-$0 ~ /^$/ {next} # ignore empty lines
+$0 ~ /^[[:space:]]*$/ {next} # ignore empty lines
 {error_raise(NR, "'" $1 "' unknown")}
 # </input>
 

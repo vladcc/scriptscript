@@ -50,8 +50,11 @@ function input_save_line(line) {
     g_all_lines[input_get_line_count()] = line
 }
 
+$0 ~ /^[[:space:]]*$/ {next}
+$0 ~ /^[[:space:]]*#/ {next}
+
 # match non-comments
-$0 !~ /^[[:space:]]*#/ {
+{
     if (syntax_check_line()) {
         ACCEPT_STATE = $1
         input_save_line($0)
@@ -380,7 +383,7 @@ function output_rules(    i, end, arr, fields) {
             output_get_handler_name(arr[1]) "(); next}")
     }
     
-    output_line("$0 ~ /^$/ {next} # ignore empty lines")
+    output_line("$0 ~ /^[[:space:]]*$/ {next} # ignore empty lines")
     output_line("{" ERROR_RAISE_FNAME "(NR, \"'\" $1 \"' unknown\")}")
     output_close_tag(TAG_INPUT)
 }
