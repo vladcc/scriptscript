@@ -1,3 +1,4 @@
+// machine generated file
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
@@ -45,18 +46,18 @@ static void test_intsqrt(void)
 			case equals:
 				if (!(result == node->match_with))
 				{
-					puts("test failed: equals");
+					printf("index of failed test: %d\n", i);
 					printf("function %s(), line %d\n", __func__, __LINE__);
-					printf("test %d, input %d, result %d, expected equals %d\n", i, node->input, result, node->match_with);
+					printf("input %d, result %d, expected equals %d\n", node->input, result, node->match_with);
 					exit(EXIT_FAILURE);
 				}
 				break;
 			case less_than:
 				if (!(result < node->match_with))
 				{
-					puts("test failed: less_than");
+					printf("index of failed test: %d\n", i);
 					printf("function %s(), line %d\n", __func__, __LINE__);
-					printf("test %d, input %d, result %d, expected less_than %d\n", i, node->input, result, node->match_with);
+					printf("input %d, result %d, expected less_than %d\n", node->input, result, node->match_with);
 					exit(EXIT_FAILURE);
 				}
 				break;
@@ -101,18 +102,18 @@ static void test_intfact(void)
 			case equals:
 				if (!(result == node->match_with))
 				{
-					puts("test failed: equals");
+					printf("index of failed test: %d\n", i);
 					printf("function %s(), line %d\n", __func__, __LINE__);
-					printf("test %d, input %d, result %d, expected equals %d\n", i, node->input, result, node->match_with);
+					printf("input %d, result %d, expected equals %d\n", node->input, result, node->match_with);
 					exit(EXIT_FAILURE);
 				}
 				break;
 			case less_than:
 				if (!(result < node->match_with))
 				{
-					puts("test failed: less_than");
+					printf("index of failed test: %d\n", i);
 					printf("function %s(), line %d\n", __func__, __LINE__);
-					printf("test %d, input %d, result %d, expected less_than %d\n", i, node->input, result, node->match_with);
+					printf("input %d, result %d, expected less_than %d\n", node->input, result, node->match_with);
 					exit(EXIT_FAILURE);
 				}
 				break;

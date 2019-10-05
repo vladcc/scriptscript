@@ -1,5 +1,11 @@
 #!/usr/bin/awk -f
 
+# scriptscript.awk -- a test case parser generator
+# v1.0
+# Author: Vladimir Dinev
+# vld.dinev@gmail.com
+# 2019-10-06
+
 # <error handling>
 function error_print_header() {print ERROR "line " NR ": '" $0 "'"}
 function error_print_expected(wanted, got) {
@@ -167,6 +173,7 @@ function output_all() {
     output_line()
     output_handlers()
     output_print_lib()
+    output_utils()
     output_divide()
     output_state_machine()
     output_rules()
@@ -174,14 +181,28 @@ function output_all() {
     output_end()
 }
 
-function output_handlers(    i, end, arr) {
+function output_handlers(    i, end, arr, j, jend, tmp_arr) {
     output_open_tag(TAG_USER_EVENTS)
 
     end = input_get_line_count()
     for (i = 1; i <= end; ++i) {
         fields = split(input_get_line(i), arr)
         
-        output_empty_function(output_get_handler_name(arr[1]))
+        if (!is_last_rule(arr[1])) {
+            output_open_function(output_get_handler_name(arr[1]))
+            output_line("save_" arr[1] "($2)", 1)
+            output_close_block()
+            tmp_arr[++jend] = arr[1]
+        }
+        else {
+            output_open_function(output_get_handler_name(arr[1]))
+            output_line()
+            output_line()
+            for (j = 1; j <= jend; ++j)
+                output_line("reset_" tmp_arr[j] "()", 1)
+            output_close_block()
+        }
+        
         output_line()
     }
     
@@ -190,6 +211,7 @@ function output_handlers(    i, end, arr) {
     output_empty_function(AWK_END)
     output_line()
     
+    INPUT_ERROR_USR = "input_error"
     output_open_function(INPUT_ERROR_USR, "error_msg")
     output_line(ERROR_RAISE_FNAME "(NR, error_msg)", 1)
     output_close_block()
@@ -242,6 +264,40 @@ function output_print_lib() {
     output_line(PRINT_NEW_LINE "(1)", 1)
     output_close_block()
     output_close_tag(TAG_PRINT_LIB)
+}
+
+function output_utils(    i, end, fields, arr_input, tmp, tmp_arr, tmp_num) {
+    end = input_get_line_count()
+    
+    output_open_tag(TAG_UTILS)
+    
+    for (i = 1; i <= end; ++i) {
+        fields = split(input_get_line(i), arr_input)
+        tmp = arr_input[1]
+        
+        if (!is_last_rule(tmp)) {
+            tmp_arr = "__" tmp "_arr__"
+            tmp_num = "__" tmp "_num__"
+            
+            output_string("function save_" tmp "(" tmp ") {")
+            output_line(tmp_arr "[++" tmp_num "] = " tmp "}")
+            
+            output_string("function get_" tmp "_count() {")
+            output_line("return " tmp_num "}")
+            
+            output_string("function get_" tmp "(num) {")
+            output_line("return " tmp_arr "[num]}")
+            
+            output_string("function reset_" tmp "() {")
+            output_line("delete " tmp_arr "; " tmp_num " = 0}")
+        
+            if (i < end-1)
+                output_line()
+        }
+        
+    }
+    
+    output_close_tag(TAG_UTILS)
 }
 
 function output_divide(    i, end) {
@@ -476,6 +532,7 @@ BEGIN {
     TAG_STATE_MACHINE = "state_machine"
     TAG_USER_EVENTS = "user_events"
     TAG_PRINT_LIB = "print_lib"
+    TAG_UTILS = "utils"
     AWK_BEGIN = "awk_BEGIN"
     AWK_END = "awk_END"
     
@@ -486,7 +543,6 @@ BEGIN {
     GLOBAL_ERR_FLAG = "__error_happened__"
     CURRENT_STATE_VAR = "__sm_now__"
     ACCEPT_STATE = ""
-    INPUT_ERROR_USR = "input_error"
     
     ERR_BAD_NF = 0
     ERR_NO_ARROW = 1

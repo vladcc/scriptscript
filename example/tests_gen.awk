@@ -1,44 +1,25 @@
 #!/usr/bin/awk -f
 
 # <user_events>
-
-function save_fname(fname) {fname_arr[++fname_count] = fname}
-function get_fname_count() {return fname_count}
-function reset_fname() {delete fname_arr; fname_count = 0}
-function get_fname(num) {return fname_arr[num]}
 function handle_fname() {
-    save_fname($2)
+	save_fname($2)
 }
 
-
-function save_input(input) {input_arr[++input_count] = input}
-function get_input_count() {return input_count}
-function get_input(num) {return input_arr[num]}
-function reset_input() {delete input_arr; input_count = 0}
 function handle_input() {
-   save_input($2)
+	save_input($2)
 }
 
-
-function save_match_with(match_with) {mw_arr[++match_with_count] = match_with}
-function get_match_with_count() {return match_with_count}
-function get_match_with(num) {return mw_arr[num]}
-function reset_match_with() {delete mw_arr; match_with_count = 0}
-function handle_match_with() {    
-    save_match_with($2)
+function handle_match_with() {
+	save_match_with($2)
 }
 
-
-function save_match_how(match_how) {mh_arr[++match_how_count] = match_how}
-function get_match_how_count() {return match_how_count}
-function get_match_how(num) {return mh_arr[num]}
-function reset_match_how() {delete mh_arr; match_how_count = 0}
 function handle_match_how() {
     MATCH_HOW_EQ_SRC = "=="
     MATCH_HOW_EQ_NAME = "equals"
     MATCH_HOW_LT_SRC = "<"
     MATCH_HOW_LT_NAME = "less_than"
 
+    # enforce only == and < comparison allowed in tests
     if ($2 == MATCH_HOW_EQ_SRC)
         $2 = MATCH_HOW_EQ_NAME
     else if ($2 == MATCH_HOW_LT_SRC)
@@ -46,30 +27,25 @@ function handle_match_how() {
     else 
         input_error("unknown match_how: '" $2 "'")    
         
-     save_match_how($2)
-}
-
-
-function reset() {
-    reset_input()
-    reset_match_with()
-    reset_match_how()
+	save_match_how($2)
 }
 
 function output_if_test(comp_op, comp_name) {
+    # print test failure detection and messages
     print_line("if (!(result " comp_op " node->match_with))")
     print_line("{")
     print_set_indent(print_get_indent()+1)
     
-    print_line("puts(\"test failed: " comp_name "\");")
+    tmp = sprintf("\"%s\", %s", "index of failed test: %%d\\n", "i")
+    print_line("printf(" tmp ");")
     
     tmp = sprintf("\"%s\", %s, %s",
         "function %%s(), line %%d\\n", "__func__", "__LINE__")
     print_line("printf(" tmp ");")
     
     tmp = sprintf("\"%s\", %s",
-        "test %%d, input %%d, result %%d, expected " comp_name " %%d\\n",
-        "i, node->input, result, node->match_with") 
+        "input %%d, result %%d, expected " comp_name " %%d\\n",
+        "node->input, result, node->match_with") 
     print_line("printf(" tmp ");")
     print_line("exit(EXIT_FAILURE);")
     
@@ -84,18 +60,23 @@ function handle_generate(    i, all, tmp) {
     FNAME = get_fname(get_fname_count())
     all = get_input_count()
     
+    # print test function
     print_line("static void test_" FNAME "(void)")
     print_line("{")    
     print_set_indent(print_get_indent()+1)
+    
+    # print struct declaration
     print_line("typedef struct " TEST_STRUCT_TYPE " {")
     print_line("int input;", 1)
     print_line("int match_with;", 1)
     print_line("int match_how;", 1)
     print_line("} " TEST_STRUCT_TYPE ";\n")
     
+    # print different types of comparison
     print_line("enum {" MATCH_HOW_EQ_NAME " = 1, " MATCH_HOW_LT_NAME " = 2};")
     print_line()
     
+    # print test table definition
     print_line(TEST_STRUCT_TYPE " " TEST_TABLE_NAME "[] = {")
     
     for (i = 1; i <= all; ++i) {
@@ -105,6 +86,7 @@ function handle_generate(    i, all, tmp) {
     }
     print_line("};\n")
     
+    # print test loop
     print_line("int result;")
     print_line(TEST_NODE_TYPE " * node;")
     
@@ -118,6 +100,7 @@ function handle_generate(    i, all, tmp) {
     print_line("node = " TEST_TABLE_NAME "+i;")
     print_line("result = " FNAME "(node->input);")
     
+    # print comparison switch
     print_line("switch(node->match_how)")
     print_line("{")
     print_set_indent(print_get_indent()+1)
@@ -127,7 +110,6 @@ function handle_generate(    i, all, tmp) {
     output_if_test(MATCH_HOW_EQ_SRC, MATCH_HOW_EQ_NAME)
     print_line("break;")
     print_set_indent(print_get_indent()-1)
-    
     
     print_line("case " MATCH_HOW_LT_NAME ":")
     print_set_indent(print_get_indent()+1)
@@ -148,12 +130,24 @@ function handle_generate(    i, all, tmp) {
     print_set_indent(print_get_indent()-1)
     print_line("}")
     print_line()
-    
-    reset()
+
+    # do not reset fname so all fnames are available for awk_END()
+	#reset_fname() 
+	reset_input()
+	reset_match_with()
+	reset_match_how()
 }
 
-
-function output_intfact() {
+function awk_BEGIN() {
+    print_line("// machine generated file")
+    
+    # print headers
+    print_line("#include <stdio.h>")
+    print_line("#include <math.h>")
+    print_line("#include <stdlib.h>")
+    print_line()
+    
+    # print intfact()
     print_line("int intfact(int n)")
     print_line("{")
     print_set_indent(print_get_indent()+1)
@@ -162,9 +156,9 @@ function output_intfact() {
     print_line("return n * intfact(n-1);")
     print_set_indent(print_get_indent()-1)
     print_line("}")
-}
-
-function output_intsqrt() {
+    print_line()
+    
+    # print intsqrt()
     print_line("int intsqrt(int n)")
     print_line("{")
     print_set_indent(print_get_indent()+1)
@@ -174,21 +168,11 @@ function output_intsqrt() {
     print_line("return -2;")
     print_set_indent(print_get_indent()-1)
     print_line("}")
-}
-
-function awk_BEGIN() {
-    print_line("#include <stdio.h>")
-    print_line("#include <math.h>")
-    print_line("#include <stdlib.h>")
-    print_line()
-    output_intfact()
-    print_line()
-    output_intsqrt()
     print_line()
 }
 
-
-function output_main(    i, end) {
+function awk_END() {
+    # print main()
     print_line("int main(void)")
     print_line("{")
     print_set_indent(print_get_indent()+1)
@@ -200,10 +184,6 @@ function output_main(    i, end) {
     print_line("return 0;")
     print_set_indent(print_get_indent()-1)
     print_line("}")
-}
-
-function awk_END() {
-    output_main()
 }
 
 function input_error(error_msg) {
@@ -241,6 +221,28 @@ function print_line(str, tabs) {
 	print_new_lines(1)
 }
 # </print_lib>
+
+# <utils>
+function save_fname(fname) {__fname_arr__[++__fname_num__] = fname}
+function get_fname_count() {return __fname_num__}
+function get_fname(num) {return __fname_arr__[num]}
+function reset_fname() {delete __fname_arr__; __fname_num__ = 0}
+
+function save_input(input) {__input_arr__[++__input_num__] = input}
+function get_input_count() {return __input_num__}
+function get_input(num) {return __input_arr__[num]}
+function reset_input() {delete __input_arr__; __input_num__ = 0}
+
+function save_match_with(match_with) {__match_with_arr__[++__match_with_num__] = match_with}
+function get_match_with_count() {return __match_with_num__}
+function get_match_with(num) {return __match_with_arr__[num]}
+function reset_match_with() {delete __match_with_arr__; __match_with_num__ = 0}
+
+function save_match_how(match_how) {__match_how_arr__[++__match_how_num__] = match_how}
+function get_match_how_count() {return __match_how_num__}
+function get_match_how(num) {return __match_how_arr__[num]}
+function reset_match_how() {delete __match_how_arr__; __match_how_num__ = 0}
+# </utils>
 
 #==============================================================================#
 #                        machine generated parser below                        #
