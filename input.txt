@@ -1,4 +1,9 @@
-# math function tests
+# fname - function name
+# input - the input value for the function specified by fname
+# match_with - a value to be matched with the result of calling fname(input)
+# match_how - how to perform the match (==, <=, >, etc.)
+# generate - generate all test cases specified for fname
+
 fname -> input
 input -> match_with
 match_with -> match_how

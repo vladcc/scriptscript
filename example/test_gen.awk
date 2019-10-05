@@ -1,54 +1,244 @@
 #!/usr/bin/awk -f
 
 # <user_events>
+
+function save_fname(fname) {fname_arr[++fname_count] = fname}
+function get_fname_count() {return fname_count}
+function reset_fname() {delete fname_arr; fname_count = 0}
+function get_fname(num) {return fname_arr[num]}
 function handle_fname() {
-
+    save_fname($2)
 }
 
+
+function save_input(input) {input_arr[++input_count] = input}
+function get_input_count() {return input_count}
+function get_input(num) {return input_arr[num]}
+function reset_input() {delete input_arr; input_count = 0}
 function handle_input() {
-
+   save_input($2)
 }
 
-function handle_match_with() {
 
+function save_match_with(match_with) {mw_arr[++match_with_count] = match_with}
+function get_match_with_count() {return match_with_count}
+function get_match_with(num) {return mw_arr[num]}
+function reset_match_with() {delete mw_arr; match_with_count = 0}
+function handle_match_with() {    
+    save_match_with($2)
 }
 
+
+function save_match_how(match_how) {mh_arr[++match_how_count] = match_how}
+function get_match_how_count() {return match_how_count}
+function get_match_how(num) {return mh_arr[num]}
+function reset_match_how() {delete mh_arr; match_how_count = 0}
 function handle_match_how() {
+    MATCH_HOW_EQ_SRC = "=="
+    MATCH_HOW_EQ_NAME = "equals"
+    MATCH_HOW_LT_SRC = "<"
+    MATCH_HOW_LT_NAME = "less_than"
 
+    if ($2 == MATCH_HOW_EQ_SRC)
+        $2 = MATCH_HOW_EQ_NAME
+    else if ($2 == MATCH_HOW_LT_SRC)
+        $2 = MATCH_HOW_LT_NAME
+    else 
+        input_error("unknown match_how: '" $2 "'")    
+        
+     save_match_how($2)
 }
 
-function handle_generate() {
 
+function reset() {
+    reset_input()
+    reset_match_with()
+    reset_match_how()
+}
+
+function output_if_test(comp_op, comp_name) {
+    print_line("if (!(result " comp_op " node->match_with))")
+    print_line("{")
+    print_set_indent(print_get_indent()+1)
+    
+    print_line("puts(\"test failed: " comp_name "\");")
+    
+    tmp = sprintf("\"%s\", %s, %s",
+        "function %%s(), line %%d\\n", "__func__", "__LINE__")
+    print_line("printf(" tmp ");")
+    
+    tmp = sprintf("\"%s\", %s",
+        "test %%d, input %%d, result %%d, expected " comp_name " %%d\\n",
+        "i, node->input, result, node->match_with") 
+    print_line("printf(" tmp ");")
+    print_line("exit(EXIT_FAILURE);")
+    
+    print_set_indent(print_get_indent()-1)
+    print_line("}")
+}
+
+function handle_generate(    i, all, tmp) {
+    TEST_STRUCT_TYPE = "test_node"
+    TEST_TABLE_NAME = "test_tbl"
+    TEST_NODE_TYPE = "test_node"
+    FNAME = get_fname(get_fname_count())
+    all = get_input_count()
+    
+    print_line("static void test_" FNAME "(void)")
+    print_line("{")    
+    print_set_indent(print_get_indent()+1)
+    print_line("typedef struct " TEST_STRUCT_TYPE " {")
+    print_line("int input;", 1)
+    print_line("int match_with;", 1)
+    print_line("int match_how;", 1)
+    print_line("} " TEST_STRUCT_TYPE ";\n")
+    
+    print_line("enum {" MATCH_HOW_EQ_NAME " = 1, " MATCH_HOW_LT_NAME " = 2};")
+    print_line()
+    
+    print_line(TEST_STRUCT_TYPE " " TEST_TABLE_NAME "[] = {")
+    
+    for (i = 1; i <= all; ++i) {
+        tmp = sprintf("{.input = %s, .match_with = %s, .match_how = %s},",
+            get_input(i), get_match_with(i), get_match_how(i))
+        print_line(tmp, 1)
+    }
+    print_line("};\n")
+    
+    print_line("int result;")
+    print_line(TEST_NODE_TYPE " * node;")
+    
+    tmp = sprintf("for (int i = 0; i < sizeof(%s)/sizeof(*%s); ++i)",
+        TEST_TABLE_NAME, TEST_TABLE_NAME)
+        
+    print_line(tmp)
+    print_line("{")
+    print_set_indent(print_get_indent()+1)
+    
+    print_line("node = " TEST_TABLE_NAME "+i;")
+    print_line("result = " FNAME "(node->input);")
+    
+    print_line("switch(node->match_how)")
+    print_line("{")
+    print_set_indent(print_get_indent()+1)
+    
+    print_line("case " MATCH_HOW_EQ_NAME ":")
+    print_set_indent(print_get_indent()+1)
+    output_if_test(MATCH_HOW_EQ_SRC, MATCH_HOW_EQ_NAME)
+    print_line("break;")
+    print_set_indent(print_get_indent()-1)
+    
+    
+    print_line("case " MATCH_HOW_LT_NAME ":")
+    print_set_indent(print_get_indent()+1)
+    output_if_test(MATCH_HOW_LT_SRC, MATCH_HOW_LT_NAME)
+    print_line("break;")
+    print_set_indent(print_get_indent()-1)
+    
+    print_line("default:")
+    print_set_indent(print_get_indent()+1)
+    print_line("break;")
+    print_set_indent(print_get_indent()-1)
+    
+    print_set_indent(print_get_indent()-1)
+    print_line("}")
+    
+    print_set_indent(print_get_indent()-1)
+    print_line("}")
+    print_set_indent(print_get_indent()-1)
+    print_line("}")
+    print_line()
+    
+    reset()
+}
+
+
+function output_intfact() {
+    print_line("int intfact(int n)")
+    print_line("{")
+    print_set_indent(print_get_indent()+1)
+    print_line("if (n < 0 || n > 12) return -1;")
+    print_line("if (n < 2) return 1;")
+    print_line("return n * intfact(n-1);")
+    print_set_indent(print_get_indent()-1)
+    print_line("}")
+}
+
+function output_intsqrt() {
+    print_line("int intsqrt(int n)")
+    print_line("{")
+    print_set_indent(print_get_indent()+1)
+    print_line("if (n < 0) return -1;")
+    print_line("double sqroot = sqrt(n);")
+    print_line("if (fabs(floor(sqroot)) == fabs(sqroot)) return sqroot;")
+    print_line("return -2;")
+    print_set_indent(print_get_indent()-1)
+    print_line("}")
 }
 
 function awk_BEGIN() {
+    print_line("#include <stdio.h>")
+    print_line("#include <math.h>")
+    print_line("#include <stdlib.h>")
+    print_line()
+    output_intfact()
+    print_line()
+    output_intsqrt()
+    print_line()
+}
 
+
+function output_main(    i, end) {
+    print_line("int main(void)")
+    print_line("{")
+    print_set_indent(print_get_indent()+1)
+    
+    end = get_fname_count();
+    for (i = 1; i <= end; ++i)
+        print_line("test_" get_fname(i) "();")
+    
+    print_line("return 0;")
+    print_set_indent(print_get_indent()-1)
+    print_line("}")
 }
 
 function awk_END() {
+    output_main()
+}
 
+function input_error(error_msg) {
+	__error_raise(NR, error_msg)
 }
 # </user_events>
 
 # <print_lib>
-function print_tab(tabs,    i) {
-	for (i = 1; i <= tabs; ++i)
+function print_set_indent(tabs) {
+	__base_indent__ = tabs
+}
+
+function print_get_indent() {
+	return __base_indent__
+}
+
+function print_tabs(tabs,    i, end) {
+	end = tabs + print_get_indent()
+	for (i = 1; i <= end; ++i)
 		printf("\t")
 }
 
-function print_new_line(new_lines,    i) {
+function print_new_lines(new_lines,    i) {
 	for (i = 1; i <= new_lines; ++i)
 		printf("\n")
 }
 
 function print_string(str, tabs) {
-	print_tab(tabs)
+	print_tabs(tabs)
 	printf(str)
 }
 
 function print_line(str, tabs) {
 	print_string(str, tabs)
-	print_new_line()
+	print_new_lines(1)
 }
 # </print_lib>
 
@@ -57,84 +247,84 @@ function print_line(str, tabs) {
 #==============================================================================#
 
 # <state_machine>
-function error_raise(line_no, error_msg) {
+function __error_raise(line_no, error_msg) {
 	print "error: line " line_no ": " error_msg
 	__error_happened__ = 1
 	exit(1)
 }
-function parse_error(expected, got) {
-	error_raise(NR, "'" expected "' expected, but got '" got "' instead")
+function __parse_error(expected, got) {
+	__error_raise(NR, "'" expected "' expected, but got '" got "' instead")
 }
-function no_data_error(what) {
-	error_raise(NR, "no data after '" what "'")
+function __no_data_error(what) {
+	__error_raise(NR, "no data after '" what "'")
 }
-function state_transition(next_state) {
+function __state_transition(next_state) {
 	if (__sm_now__ == "") {
-		if (next_state == RULE_FNAME) {
-			if (NF < 2) no_data_error(next_state)
+		if (next_state == __RULE_FNAME__) {
+			if (NF < 2) __no_data_error(next_state)
 			else __sm_now__ = next_state
 		}
-		else parse_error(RULE_FNAME, next_state)
+		else __parse_error(__RULE_FNAME__, next_state)
 	}
-	else if (__sm_now__ == RULE_FNAME) {
-		if (next_state == RULE_INPUT) {
-			if (NF < 2) no_data_error(next_state)
+	else if (__sm_now__ == __RULE_FNAME__) {
+		if (next_state == __RULE_INPUT__) {
+			if (NF < 2) __no_data_error(next_state)
 			else __sm_now__ = next_state
 		}
-		else parse_error(RULE_INPUT, next_state)
+		else __parse_error(__RULE_INPUT__, next_state)
 	}
-	else if (__sm_now__ == RULE_INPUT) {
-		if (next_state == RULE_MATCH_WITH) {
-			if (NF < 2) no_data_error(next_state)
+	else if (__sm_now__ == __RULE_INPUT__) {
+		if (next_state == __RULE_MATCH_WITH__) {
+			if (NF < 2) __no_data_error(next_state)
 			else __sm_now__ = next_state
 		}
-		else parse_error(RULE_MATCH_WITH, next_state)
+		else __parse_error(__RULE_MATCH_WITH__, next_state)
 	}
-	else if (__sm_now__ == RULE_MATCH_WITH) {
-		if (next_state == RULE_MATCH_HOW) {
-			if (NF < 2) no_data_error(next_state)
+	else if (__sm_now__ == __RULE_MATCH_WITH__) {
+		if (next_state == __RULE_MATCH_HOW__) {
+			if (NF < 2) __no_data_error(next_state)
 			else __sm_now__ = next_state
 		}
-		else parse_error(RULE_MATCH_HOW, next_state)
+		else __parse_error(__RULE_MATCH_HOW__, next_state)
 	}
-	else if (__sm_now__ == RULE_MATCH_HOW) {
-		if (next_state == RULE_INPUT) {
-			if (NF < 2) no_data_error(next_state)
+	else if (__sm_now__ == __RULE_MATCH_HOW__) {
+		if (next_state == __RULE_INPUT__) {
+			if (NF < 2) __no_data_error(next_state)
 			else __sm_now__ = next_state
 		}
-		else if (next_state == RULE_GENERATE) {
+		else if (next_state == __RULE_GENERATE__) {
 			__sm_now__ = next_state
 		}
-		else parse_error(RULE_INPUT "' or '" RULE_GENERATE, next_state)
+		else __parse_error(__RULE_INPUT__ "' or '" __RULE_GENERATE__, next_state)
 	}
-	else if (__sm_now__ == RULE_GENERATE) {
-		if (next_state == RULE_FNAME) {
-			if (NF < 2) no_data_error(next_state)
+	else if (__sm_now__ == __RULE_GENERATE__) {
+		if (next_state == __RULE_FNAME__) {
+			if (NF < 2) __no_data_error(next_state)
 			else __sm_now__ = next_state
 		}
-		else parse_error(RULE_FNAME, next_state)
+		else __parse_error(__RULE_FNAME__, next_state)
 	}
 }
 # </state_machine>
 
 # <input>
 $0 ~ /^[[:space:]]*#/ {next} # match comments
-$1 ~ RULE_FNAME {state_transition($1); handle_fname(); next}
-$1 ~ RULE_INPUT {state_transition($1); handle_input(); next}
-$1 ~ RULE_MATCH_WITH {state_transition($1); handle_match_with(); next}
-$1 ~ RULE_MATCH_HOW {state_transition($1); handle_match_how(); next}
-$1 ~ RULE_GENERATE {state_transition($1); handle_generate(); next}
+$1 ~ __RULE_FNAME__ {__state_transition($1); handle_fname(); next}
+$1 ~ __RULE_INPUT__ {__state_transition($1); handle_input(); next}
+$1 ~ __RULE_MATCH_WITH__ {__state_transition($1); handle_match_with(); next}
+$1 ~ __RULE_MATCH_HOW__ {__state_transition($1); handle_match_how(); next}
+$1 ~ __RULE_GENERATE__ {__state_transition($1); handle_generate(); next}
 $0 ~ /^[[:space:]]*$/ {next} # ignore empty lines
-{error_raise(NR, "'" $1 "' unknown")}
+{__error_raise(NR, "'" $1 "' unknown")}
 # </input>
 
 # <start>
 BEGIN {
-	RULE_FNAME = "fname"
-	RULE_INPUT = "input"
-	RULE_MATCH_WITH = "match_with"
-	RULE_MATCH_HOW = "match_how"
-	RULE_GENERATE = "generate"
+	__RULE_FNAME__ = "fname"
+	__RULE_INPUT__ = "input"
+	__RULE_MATCH_WITH__ = "match_with"
+	__RULE_MATCH_HOW__ = "match_how"
+	__RULE_GENERATE__ = "generate"
 	__error_happened__ = 0
 	awk_BEGIN()
 }
@@ -143,8 +333,8 @@ BEGIN {
 # <end>
 END {
 	if (!__error_happened__) {
-		if (__sm_now__ != RULE_GENERATE)
-			error_raise(NR, "file should end with '" RULE_GENERATE "'")
+		if (__sm_now__ != __RULE_GENERATE__)
+			__error_raise(NR, "file should end with '" __RULE_GENERATE__ "'")
 		else
 			awk_END()
 	}

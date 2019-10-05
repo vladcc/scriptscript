@@ -148,7 +148,7 @@ function output_close_tag(what) {
         output_line("# </" what ">\n")
 }
 
-function output_get_rule_name(rule) {return "RULE_" toupper(rule)}
+function output_get_rule_name(rule) {return "__RULE_" toupper(rule) "__"}
 function output_get_handler_name(what) {return "handle_" what}
 
 function output_emit_rule(str,    tmp) {
@@ -188,20 +188,39 @@ function output_handlers(    i, end, arr) {
     output_empty_function(AWK_BEGIN)
     output_line()
     output_empty_function(AWK_END)
+    output_line()
+    
+    output_open_function(INPUT_ERROR_USR, "error_msg")
+    output_line(ERROR_RAISE_FNAME "(NR, error_msg)", 1)
+    output_close_block()
     
     output_close_tag(TAG_USER_EVENTS)
 }
 
 function output_print_lib() {
-    PRINT_TAB = "print_tab"
-    PRINT_NEW_LINE = "print_new_line"
+    PRINT_BASE_INDENT = "__base_indent__"
+    PRINT_SET_INDENT = "print_set_indent"
+    PRINT_GET_INDENT = "print_get_indent"
+    PRINT_TAB = "print_tabs"
+    PRINT_NEW_LINE = "print_new_lines"
     PRINT_STRING = "print_string"
     PRINT_LINE = "print_line"
     
     output_open_tag(TAG_PRINT_LIB)
     
-    output_open_function(PRINT_TAB, "tabs,    i")
-    output_line("for (i = 1; i <= tabs; ++i)", 1)
+    output_open_function(PRINT_SET_INDENT, "tabs")
+    output_line(PRINT_BASE_INDENT " = tabs", 1)
+    output_close_block()
+    output_line()
+    
+    output_open_function(PRINT_GET_INDENT)
+    output_line("return " PRINT_BASE_INDENT, 1)
+    output_close_block()
+    output_line()
+    
+    output_open_function(PRINT_TAB, "tabs,    i, end")
+    output_line("end = tabs + " PRINT_GET_INDENT "()", 1)
+    output_line("for (i = 1; i <= end; ++i)", 1)
     output_line("printf(\"\\t\")", 2)
     output_close_block()
     output_line()
@@ -220,7 +239,7 @@ function output_print_lib() {
     
     output_open_function(PRINT_LINE, "str, tabs")
     output_line(PRINT_STRING "(str, tabs)", 1)
-    output_line(PRINT_NEW_LINE "()", 1)
+    output_line(PRINT_NEW_LINE "(1)", 1)
     output_close_block()
     output_close_tag(TAG_PRINT_LIB)
 }
@@ -460,13 +479,14 @@ BEGIN {
     AWK_BEGIN = "awk_BEGIN"
     AWK_END = "awk_END"
     
-    STATE_TRANSITION_FNAME = "state_transition"
-    PARSE_ERR_FNAME = "parse_error"
-    NO_DATA_ERR_FNAME = "no_data_error"
-    ERROR_RAISE_FNAME = "error_raise"
+    STATE_TRANSITION_FNAME = "__state_transition"
+    PARSE_ERR_FNAME = "__parse_error"
+    NO_DATA_ERR_FNAME = "__no_data_error"
+    ERROR_RAISE_FNAME = "__error_raise"
     GLOBAL_ERR_FLAG = "__error_happened__"
     CURRENT_STATE_VAR = "__sm_now__"
     ACCEPT_STATE = ""
+    INPUT_ERROR_USR = "input_error"
     
     ERR_BAD_NF = 0
     ERR_NO_ARROW = 1

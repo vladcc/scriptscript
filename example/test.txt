@@ -1,20 +1,75 @@
 # test gen example
-fname sqrt
+
+# The function intsqrt() takes a signed int and returns its square root if the
+# square root is itself an int. If the square root of the input is not an
+# integer, or the input has no real square root, less than zero is returned.
+fname intsqrt
+
 input 16
-          
 match_with 4
-match_how =
-input 16
-match_with 4
-match_how =
+match_how ==
+
+input 10
+match_with 0
+match_how <
+
+input 0
+match_with 0
+match_how ==
+
+input -1
+match_with 0
+match_how <
 generate
 
-fname sqrt
-input 16
-match_with 4
-match_how =
-input 16
-match_with 4
-match_how =
+# The function intfact() takes a signed int and returns its factorial if the
+# factorial fits in a signed int, assuming an int is 32 bits wide. 
+# If the result does not fit, or the input is a negative number,
+# less than zero is returned. 
+fname intfact
+
+input 0
+match_with 1
+match_how ==
+
+input 1
+match_with 1
+match_how ==
+
+input 2
+match_with 2
+match_how ==
+
+input 3
+match_with 6
+match_how ==
+
+input 4
+match_with 24
+match_how ==
+
+input 5
+match_with 120
+match_how ==
+
+input 6
+match_with 720
+match_how ==
+
+input 12
+match_with 479001600
+match_how ==
+
+input 13
+match_with 0
+match_how <
+
+input 100
+match_with 0
+match_how <
+
+input -5
+match_with 0
+match_how <
 generate
 
