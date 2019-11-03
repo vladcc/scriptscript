@@ -1,0 +1,5 @@
+2019-11-03
+v1.01
+__error_raise() now takes only an error_msg without a line number. Error
+messages print the name of the file and FNR is used instead of NR in both
+scriptscript and the generated parser.

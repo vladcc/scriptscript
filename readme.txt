@@ -1,5 +1,9 @@
 What's this and why it exists?
 
+It's an awk script which generates a parser which is an awk script intended to 
+generate code by following user specified grammar rules for a very simple
+grammar.
+
 Imagine you are writing a function which takes a number and returns a number.
 You want to test it. You write a bunch of ifs where you call the function, check
 the output, and print an error message if it's not what you'd expect. So far,

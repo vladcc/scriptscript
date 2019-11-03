@@ -1,13 +1,13 @@
 #!/usr/bin/awk -f
 
-# scriptscript.awk -- a test case parser generator
-# v1.0
+# scriptscript.awk -- a code generator parser generator
+# for version look at the VERSION variable
 # Author: Vladimir Dinev
 # vld.dinev@gmail.com
-# 2019-10-06
+# 2019-11-03
 
 # <error handling>
-function error_print_header() {print ERROR "line " NR ": '" $0 "'"}
+function error_print_header() {print ERROR FILENAME ", line " FNR ": '" $0 "'"}
 function error_print_expected(wanted, got) {
     print "'" wanted "' expected but got '" got "' instead"
 }
@@ -214,7 +214,7 @@ function output_handlers(    i, end, arr, j, jend, tmp_arr) {
     
     INPUT_ERROR_USR = "input_error"
     output_open_function(INPUT_ERROR_USR, "error_msg")
-    output_line(ERROR_RAISE_FNAME "(NR, error_msg)", 1)
+    output_line(ERROR_RAISE_FNAME "(error_msg)", 1)
     output_close_block()
     
     output_close_tag(TAG_USER_EVENTS)
@@ -326,8 +326,8 @@ function output_divide(    i, end) {
 }
 
 function output_error_raise() {
-    output_open_function(ERROR_RAISE_FNAME, "line_no, error_msg")
-    output_line("print \"error: line \" line_no \": \" error_msg", 1)
+    output_open_function(ERROR_RAISE_FNAME, "error_msg")
+    output_line("print \"error: \" FILENAME \", line \" FNR \": \" error_msg",1)
     output_line(GLOBAL_ERR_FLAG " = 1", 1)
     output_line("exit(1)", 1)
     output_close_block()
@@ -335,14 +335,14 @@ function output_error_raise() {
 
 function output_parse_error() {
     output_open_function(PARSE_ERR_FNAME, "expected, got")
-    output_line(ERROR_RAISE_FNAME "(NR, "\
+    output_line(ERROR_RAISE_FNAME "("\
     "\"'\" expected \"' expected, but got '\" got \"' instead\")", 1)
     output_close_block()
 }
 
 function output_no_data_error() {
     output_open_function(NO_DATA_ERR_FNAME, "what")
-    output_line(ERROR_RAISE_FNAME "(NR, \"no data after '\" what \"'\")", 1)
+    output_line(ERROR_RAISE_FNAME "(\"no data after '\" what \"'\")", 1)
     output_close_block()
 }
 
@@ -460,7 +460,7 @@ function output_rules(    i, end, arr, fields) {
     }
     
     output_line("$0 ~ /^[[:space:]]*$/ {next} # ignore empty lines")
-    output_line("{" ERROR_RAISE_FNAME "(NR, \"'\" $1 \"' unknown\")}")
+    output_line("{" ERROR_RAISE_FNAME "(\"'\" $1 \"' unknown\")}")
     output_close_tag(TAG_INPUT)
 }
 
@@ -488,7 +488,7 @@ function output_end(    tmp) {
         tmp = output_get_rule_name(ACCEPT_STATE)
         output_line("if (" CURRENT_STATE_VAR " != " tmp ")", 2)
             output_line(ERROR_RAISE_FNAME\
-                "(NR, \"file should end with '\" " tmp " \"'\")", 3)
+                "(\"file should end with '\" " tmp " \"'\")", 3)
             output_line("else",2)
                 output_line( AWK_END "()", 3)
         output_close_block(1)
@@ -554,7 +554,7 @@ BEGIN {
     NO = "no"
     
     PROG_NAME = "scriptscript"
-    VERSION = "v1.0"
+    VERSION = "v1.01"
     start_set_awk_print_tags()
 }
 # </start>
