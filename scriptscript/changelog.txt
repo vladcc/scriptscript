@@ -3,3 +3,7 @@ v1.01
 __error_raise() now takes only an error_msg without a line number. Error
 messages print the name of the file and FNR is used instead of NR in both
 scriptscript and the generated parser.
+
+2020-02-25
+v1.02
+print_inc_indent() and print_dec_indent() added

@@ -101,6 +101,10 @@ print lib.
 print_get_indent() - Returns the number of tabs currently used for default
 indentation.
 
+print_inc_indent() - Does print_set_indent(print_get_indent()+1)
+
+print_dec_indent() - Does print_set_indent(print_get_indent()-1)
+
 print_tabs(tabs,    i, end) - Prints a 'tabs' number of tabs.
 
 print_new_lines(new_lines,    i) - Prints a 'new_lines' number of empty lines.
