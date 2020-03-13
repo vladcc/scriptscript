@@ -7,3 +7,7 @@ scriptscript and the generated parser.
 2020-02-25
 v1.02
 print_inc_indent() and print_dec_indent() added
+
+2020-03-13
+v2.0
+arbitrary number of follow rules now supported

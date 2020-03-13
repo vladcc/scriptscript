@@ -4,223 +4,171 @@
 # for version look at the VERSION variable
 # Author: Vladimir Dinev
 # vld.dinev@gmail.com
-# 2020-02-25
+# 2020-03-13
 
-# <error handling>
-function error_print_header() {print ERROR FILENAME ", line " FNR ": '" $0 "'"}
-function error_print_expected(wanted, got) {
-    print "'" wanted "' expected but got '" got "' instead"
-}
-
-function error_no_arrow(str) {error_print_expected(ARROW_STR, $2)}
-function error_no_bar(str) {error_print_expected(BAR_STR, $4)}
-function error_bad_nf(str) {
-    print "wrong number of fields"
-    print "allowed syntax is:"
-    print "A -> B"
-    print "or"
-    print "A -> B | C"
-}
-
-function error_bad_rule(rule, str) {
-    print "rule '" rule "' must start with a letter or an underscore"
-    print "and contain only letters, numbers, and underscores"
-}
-
-function error_raise() {g_error_happened = 1}
-function error_happened() {return g_error_happened}
-function error_set(err_no, str) {
-    error_print_header()
-    
-    if (err_no == ERR_BAD_FIELD_NUM)
-        error_bad_nf(str)
-    else if (err_no == ERR_NO_ARROW)
-        error_no_arrow(str)
-    else if (err_no == ERR_NO_BAR)
-        error_no_bar(str)
-    else if (err_no == ERR_BAD_RULE)
-        error_bad_rule(str)
-    else
-        print "Unknown error: '" err_no "'"
-    
+# <error_handling>
+function error_raise() {LG_err_happened = 1}
+function error_happened() {return LG_err_happened}
+function error(str, line_no) {
     error_raise()
+    printf("error: %s, line %d : %s\n",
+        FILENAME, (line_no) ? line_no : FNR, str)
+    exit(1)
 }
-# </error handling>
+# </error_handling>
 
 # <input>
-function input_inc_line_count() {++g_line_count}
-function input_get_line_count() {return g_line_count}
-function input_get_line(n) {return g_all_lines[n]}
-function input_save_line(line) {
-    input_inc_line_count() 
-    g_all_lines[input_get_line_count()] = line
-}
+function in_get_num_rules() {return LO_next_rule}
+function in_next_rule() {return ++LO_next_rule}
+function in_get_rule_name(n) {return LO_rules[n]}
+function in_get_rule_line(rule) {return LO_rules[rule, RL_LINE]}
+function in_get_rule_flw_num(rule) {return LO_rules[rule, RL_MEM_FLW_NUM]}
+function in_get_rule_flw(rule, n) {return LO_rules[rule, RL_MEM_FOLLOW n]}
 
-$0 ~ /^[[:space:]]*$/ {next}
-$0 ~ /^[[:space:]]*#/ {next}
+function rule_set_accept(rule) {LG_accept = rule}
+function rule_get_accept() {return LG_accept}
+function rule_is_accept(rule) {return LG_accept == rule}
 
-# match non-comments
-{
-    if (syntax_check_line()) {
-        ACCEPT_STATE = $1
-        input_save_line($0)
+function rule_is_defined(rule,    i, end) {
+    end = in_get_num_rules()
+    for (i = 1; i <= end; ++i) {
+        if (rule == in_get_rule_name(i))
+            return 1
     }
+    return 0
 }
+
+function in_save_line() {LO_lines[in_next_line()] = $0}
+function in_next_line() {return ++LO_next_line}
+function in_get_line_num() {return LO_next_line}
+function in_get_line(n) {return LO_lines[n]}
+
+function in_save(row,    rule, rest, tmp_arr, tmp_var, i) {
+    # remember original source line
+    in_save_line()
+    
+    # remove spaces
+    gsub(/[[:space:]]+/, "", row)
+
+    # split rule from rest
+    if (split(row, tmp_arr, RL_ARROW) != 2)
+        error(sprintf("bad '%s' syntax", RL_ARROW))
+
+    rule = tmp_arr[1]
+    rest = tmp_arr[2]
+    
+    if (!rest)
+        error(sprintf("no follow up after rule '%s'", rule))
+    
+    # check rule syntax
+    if (!match(rule, RL_REGX))
+        error(sprintf("'%s' not a valid rule syntax", rule))
+    
+    if (rule_is_defined(rule))
+        error(sprintf("'%s' rule redefined", rule))
+        
+    # save rule
+    LO_rules[in_next_rule()] = rule
+    
+    # save rule line for later error messages
+    LO_rules[rule, RL_LINE] = FNR
+    
+    # split rule follow ups
+    tmp_var = split(rest, tmp_arr, RL_BAR)
+    
+    for (i = 1; i <= tmp_var; ++i) {
+        if (match(tmp_arr[i], RL_REGX))
+            LO_rules[rule, RL_MEM_FOLLOW i] = tmp_arr[i]
+        else
+            error(sprintf("follow up number %d '%s' syntax not valid",
+                i, tmp_arr[i]))
+    }
+    
+    LO_rules[rule, RL_MEM_FLW_NUM] = tmp_var
+    rule_set_accept(rule)
+}
+
+$0 ~ /^[[:space:]]*$/ {next} # empty lines
+$0 ~ /^[[:space:]]*#/ {next} # comments
+{in_save($0)} # non-comments
 # </input>
 
-# <syntax>
-function syntax_check_line() {
-# allowed only
-# A -> B
-# or
-# A -> B | C
-
-    if (NF == 3)
-        syntax_check_3()
-    else if (NF == 5)
-        syntax_check_5()
-    else
-        error_set(ERR_BAD_NF)
-    
-    return !error_happened()
-}
-
-function syntax_check_3() {
-    syntax_match($1, WORD_RE, ERR_BAD_RULE)
-    syntax_match($2, ARROW_RE, ERR_NO_ARROW)
-    syntax_match($3, WORD_RE, ERR_BAD_RULE)
-}
-
-function syntax_check_5() {
-    syntax_check_3()
-    syntax_match($4, BAR_RE, ERR_NO_BAR)
-    syntax_match($5, WORD_RE, ERR_BAD_RULE)
-}
-
-function syntax_match(str, regexp, error) {
-    if (str !~ regexp)
-        error_set(error, str)
-}
-# </syntax>
-
 # <output>
-function output_tabs(n,    i) {
-    for (i = 0; i < n; ++i)
-        printf("\t")
+function out_tabs(n,    i) {for (i = 0; i < n; ++i) printf("\t")}
+function out_string(str, tabs) {out_tabs(tabs); printf(str)}
+function out_line(str, tabs) {out_tabs(tabs); print str}
+function out_open_else(tabs) {out_line("else {", tabs)}
+function out_close_block(tabs) {out_line("}", tabs)}
+function out_open_tag(what) {out_line(sprintf("# <%s>", what))}
+function out_close_tag(what) {out_line(sprintf("# </%s>\n", what))}
+function out_get_rule_name(rule) {return "__R_" toupper(rule)}
+function out_get_handler_name(what) {return "handle_" what}
+
+function out_open_function(name, params) {
+    out_line(sprintf("function %s(%s) {", name, params))
 }
 
-function output_string(str, tabs) {
-    output_tabs(tabs)
-    printf(str)
+function out_empty_function(name, params) {
+    out_open_function(name, params)
+    out_line()
+    out_close_block()
 }
 
-function output_line(str, tabs) {
-    output_tabs(tabs)
-    print str
+function out_open_if(condition, tabs) {
+    out_line(sprintf("if (%s) {", condition), tabs)
 }
 
-function output_open_function(name, params) {
-    output_line("function " name "(" params ") {")
+function out_open_else_if(condition, tabs) {
+    out_line(sprintf("else if (%s) {", condition), tabs)
 }
 
-function output_empty_function(name, params) {
-    output_open_function(name, params)
-    output_line()
-    output_close_block()
+function out_all() {
+    out_line("#!/usr/bin/awk -f\n")
+    out_handlers()
+    out_print_lib()
+    out_utils()
+    out_divide()
+    out_state_machine()
+    out_rules()
+    out_begin()
+    out_end()
+    out_source()
+    out_line(sprintf("# generated by %s %s", PROG_NAME, VERSION))
 }
 
-function output_open_if(condition, tabs) {
-    output_line("if (" condition ") {", tabs)
-}
-
-function output_open_else_if(condition, tabs) {
-    output_line("else if (" condition ") {", tabs)
-}
-
-function output_open_else(tabs) {
-    output_line("else {", tabs)
-}
-
-function output_close_block(tabs) {
-    output_line("}", tabs)
-}
-
-function output_open_tag(what) {
-    if (start_should_print_tags())
-        output_line("# <" what ">")
-}
-function output_close_tag(what) {
-    if (start_should_print_tags())
-        output_line("# </" what ">\n")
-}
-
-function output_get_rule_name(rule) {return "__RULE_" toupper(rule) "__"}
-function output_get_handler_name(what) {return "handle_" what}
-
-function output_emit_rule(str,    tmp) {
-    tmp = output_get_handler_name(str)
-    
-    output_line()
-    output_line("$1 == " output_get_rule_name(str) " {"\
-        STATE_TRANSITION_FNAME "($1); " tmp "()}")
-    output_open_function(tmp)
-    output_line()
-    output_close_block()
-}
-
-function output_all() {
-    output_line("#!/usr/bin/awk -f")
-    output_line()
-    output_handlers()
-    output_print_lib()
-    output_utils()
-    output_divide()
-    output_state_machine()
-    output_rules()
-    output_begin()
-    output_end()
-    output_line("# generated by " PROG_NAME " " VERSION)
-}
-
-function output_handlers(    i, end, arr, j, jend, tmp_arr) {
-    output_open_tag(TAG_USER_EVENTS)
-
-    end = input_get_line_count()
+function out_handlers(    rule, i, end, j, jend, tmp_arr) {
+    out_open_tag(TAG_USER_EVENTS)
+    end = in_get_num_rules()
     for (i = 1; i <= end; ++i) {
-        fields = split(input_get_line(i), arr)
+        rule = in_get_rule_name(i)
         
-        if (!is_last_rule(arr[1])) {
-            output_open_function(output_get_handler_name(arr[1]))
-            output_line("save_" arr[1] "($2)", 1)
-            output_close_block()
-            tmp_arr[++jend] = arr[1]
-        }
-        else {
-            output_open_function(output_get_handler_name(arr[1]))
-            output_line()
-            output_line()
+        out_open_function(out_get_handler_name(rule))
+        
+        if (!rule_is_accept(rule)) {
+            out_line(sprintf("save_%s($2)", rule), 1)
+            tmp_arr[++jend] = rule
+        } else {
+            out_line()
+            out_line()
             for (j = 1; j <= jend; ++j)
-                output_line("reset_" tmp_arr[j] "()", 1)
-            output_close_block()
+                out_line(sprintf("reset_%s()", tmp_arr[j]), 1)
         }
-        
-        output_line()
+        out_close_block()
+        out_line()
     }
     
-    output_empty_function(AWK_BEGIN)
-    output_line()
-    output_empty_function(AWK_END)
-    output_line()
+    out_empty_function(AWK_BEGIN)
+    out_line()
+    out_empty_function(AWK_END)
+    out_line()
     
-    INPUT_ERROR_USR = "input_error"
-    output_open_function(INPUT_ERROR_USR, "error_msg")
-    output_line(ERROR_RAISE_FNAME "(error_msg)", 1)
-    output_close_block()
-    
-    output_close_tag(TAG_USER_EVENTS)
+    out_open_function("in_error", "error_msg")
+    out_line(ERROR_RAISE_FNAME "(error_msg)", 1)
+    out_close_block()
+    out_close_tag(TAG_USER_EVENTS)
 }
 
-function output_print_lib() {
+function out_print_lib() {
     PRINT_BASE_INDENT = "__base_indent__"
     PRINT_SET_INDENT = "print_set_indent"
     PRINT_GET_INDENT = "print_get_indent"
@@ -230,315 +178,256 @@ function output_print_lib() {
     PRINT_NEW_LINE = "print_new_lines"
     PRINT_STRING = "print_string"
     PRINT_LINE = "print_line"
+    FUNCT = "function"
     
-    output_open_tag(TAG_PRINT_LIB)
+    out_open_tag(TAG_PRINT_LIB)
+    out_line(sprintf("%s %s(tabs) {%s = tabs}",
+        FUNCT, PRINT_SET_INDENT, PRINT_BASE_INDENT))
+        
+    out_line(sprintf("%s %s() {return %s}",
+        FUNCT, PRINT_GET_INDENT, PRINT_BASE_INDENT))
     
-    output_open_function(PRINT_SET_INDENT, "tabs")
-    output_line(PRINT_BASE_INDENT " = tabs", 1)
-    output_close_block()
-    output_line()
+    out_line(sprintf("%s %s() {%s(%s()+1)}",
+        FUNCT, PRINT_INC_INDENT, PRINT_SET_INDENT, PRINT_GET_INDENT))
     
-    output_open_function(PRINT_GET_INDENT)
-    output_line("return " PRINT_BASE_INDENT, 1)
-    output_close_block()
-    output_line()
+    out_line(sprintf("%s %s() {%s(%s()-1)}",
+        FUNCT, PRINT_DEC_INDENT, PRINT_SET_INDENT, PRINT_GET_INDENT))
     
-    output_open_function(PRINT_INC_INDENT)
-    output_line(PRINT_SET_INDENT "(" PRINT_GET_INDENT "()+1)", 1)
-    output_close_block()
-    output_line()
+    out_line(sprintf("%s %s(str, tabs) {%s(tabs); printf(str)}",
+        FUNCT, PRINT_STRING, PRINT_TAB))
     
-    output_open_function(PRINT_DEC_INDENT)
-    output_line(PRINT_SET_INDENT "(" PRINT_GET_INDENT "()-1)", 1)
-    output_close_block()
-    output_line()
+    out_line(sprintf("%s %s(str, tabs) {%s(str, tabs); %s(1)}",
+        FUNCT, PRINT_LINE, PRINT_STRING, PRINT_NEW_LINE))
     
-    output_open_function(PRINT_TAB, "tabs,    i, end")
-    output_line("end = tabs + " PRINT_GET_INDENT "()", 1)
-    output_line("for (i = 1; i <= end; ++i)", 1)
-    output_line("printf(\"\\t\")", 2)
-    output_close_block()
-    output_line()
-
-    output_open_function(PRINT_NEW_LINE, "new_lines,    i")
-    output_line("for (i = 1; i <= new_lines; ++i)", 1)
-    output_line("printf(\"\\n\")", 2)
-    output_close_block()
-    output_line()
+    out_open_function(PRINT_TAB, "tabs,    i, end")
+    out_line("end = tabs + " PRINT_GET_INDENT "()", 1)
+    out_line("for (i = 1; i <= end; ++i)", 1)
+    out_line("printf(\"\\t\")", 2)
+    out_close_block()
     
-    output_open_function(PRINT_STRING, "str, tabs")
-    output_line(PRINT_TAB "(tabs)", 1)
-    output_line("printf(str)", 1)
-    output_close_block()
-    output_line()
-    
-    output_open_function(PRINT_LINE, "str, tabs")
-    output_line(PRINT_STRING "(str, tabs)", 1)
-    output_line(PRINT_NEW_LINE "(1)", 1)
-    output_close_block()
-    output_close_tag(TAG_PRINT_LIB)
+    out_open_function(PRINT_NEW_LINE, "new_lines,    i")
+    out_line("for (i = 1; i <= new_lines; ++i)", 1)
+    out_line("printf(\"\\n\")", 2)
+    out_close_block()
+    out_close_tag(TAG_PRINT_LIB)
 }
 
-function output_utils(    i, end, fields, arr_input, tmp, tmp_arr, tmp_num) {
-    end = input_get_line_count()
-    
-    output_open_tag(TAG_UTILS)
-    
+function out_utils(    i, end, arr_input, tmp, tmp_arr, tmp_num) {
+    out_open_tag(TAG_UTILS)
+    end = in_get_num_rules()
     for (i = 1; i <= end; ++i) {
-        fields = split(input_get_line(i), arr_input)
-        tmp = arr_input[1]
+        tmp = in_get_rule_name(i)
         
-        if (!is_last_rule(tmp)) {
+        if (!rule_is_accept(tmp)) {
             tmp_arr = "__" tmp "_arr__"
             tmp_num = "__" tmp "_num__"
             
-            output_string("function save_" tmp "(" tmp ") {")
-            output_line(tmp_arr "[++" tmp_num "] = " tmp "}")
+            out_string("function save_" tmp "(" tmp ") {")
+            out_line(tmp_arr "[++" tmp_num "] = " tmp "}")
             
-            output_string("function get_" tmp "_count() {")
-            output_line("return " tmp_num "}")
+            out_string("function get_" tmp "_count() {")
+            out_line("return " tmp_num "}")
             
-            output_string("function get_" tmp "(num) {")
-            output_line("return " tmp_arr "[num]}")
+            out_string("function get_" tmp "(num) {")
+            out_line("return " tmp_arr "[num]}")
             
-            output_string("function reset_" tmp "() {")
-            output_line("delete " tmp_arr "; " tmp_num " = 0}")
+            out_string("function reset_" tmp "() {")
+            out_line("delete " tmp_arr "; " tmp_num " = 0}")
         
-            if (i < end-1)
-                output_line()
+            if (i < end-1) out_line()
         }
-        
     }
-    
-    output_close_tag(TAG_UTILS)
+    out_close_tag(TAG_UTILS)
 }
 
-function output_divide(    i, end) {
-    output_string("#")
+function out_divide(    i, end) {
+    out_string("#")
     end = 78
-    for (i = 1; i <= end; ++i) { output_string("=") }
-    output_string("#")
-    output_line()
+    for (i = 1; i <= end; ++i) { out_string("=") }
+    out_string("#\n")
     
-    output_string("#")
+    out_string("#")
     end = 24
-    for (i = 1; i <= end; ++i) { output_string(" ") }
-    output_string("machine generated parser below")
-    end = 24
-    for (i = 1; i <= end; ++i) { output_string(" ") }
-    output_string("#")
-    output_line()
+    for (i = 1; i <= end; ++i) { out_string(" ") }
+    out_string("machine generated parser below")
+    for (i = 1; i <= end; ++i) { out_string(" ") }
+    out_string("#\n")
     
-    output_string("#")
+    out_string("#")
     end = 78
-    for (i = 1; i <= end; ++i) { output_string("=") }
-    output_string("#")
-    output_line()
-    output_line()
+    for (i = 1; i <= end; ++i) { out_string("=") }
+    out_string("#\n\n")
 }
 
-function output_error_raise() {
-    output_open_function(ERROR_RAISE_FNAME, "error_msg")
-    output_line("print \"error: \" FILENAME \", line \" FNR \": \" error_msg",1)
-    output_line(GLOBAL_ERR_FLAG " = 1", 1)
-    output_line("exit(1)", 1)
-    output_close_block()
+function out_error_raise() {
+    out_open_function(ERROR_RAISE_FNAME, "error_msg")
+    out_line("printf(\"error: %s, line %d: %s\\n\",\
+        FILENAME, FNR, error_msg)", 1)
+    out_line(GLOBAL_ERR_FLAG " = 1", 1)
+    out_line("exit(1)", 1)
+    out_close_block()
 }
 
-function output_parse_error() {
-    output_open_function(PARSE_ERR_FNAME, "expected, got")
-    output_line(ERROR_RAISE_FNAME "("\
-    "\"'\" expected \"' expected, but got '\" got \"' instead\")", 1)
-    output_close_block()
+function out_parse_error() {
+    out_open_function(PARSE_ERR_FNAME, "expct, got")
+    out_line(ERROR_RAISE_FNAME\
+        "(sprintf(\"'%s' expected, but got '%s' instead\", expct, got))", 1)
+    out_close_block()
 }
 
-function output_no_data_error() {
-    output_open_function(NO_DATA_ERR_FNAME, "what")
-    output_line(ERROR_RAISE_FNAME "(\"no data after '\" what \"'\")", 1)
-    output_close_block()
+function out_switch() {
+    out_open_function(SWITCH_FNAME, NEXT_STATE)
+        out_line(sprintf("%s = %s", CURRENT_STATE_VAR_NAME, NEXT_STATE), 1)
+    out_close_block()
 }
 
-function is_last_rule(rule) {
-    return rule == ACCEPT_STATE
+function out_check_switch() {
+    out_open_function(CHECK_SWITCH_FNAME, NEXT_STATE)
+        out_line(sprintf("if (NF < 2) %s(%s, %s))",
+            ERROR_RAISE_FNAME,
+            "sprintf(\"no data after '%s'\"",
+            NEXT_STATE), 1)
+        out_string("else ", 1)
+        out_state_change()
+    out_close_block()
 }
 
-function output_data_check(rule, tabs,    sm_var, ret) {
-    sm_var = CURRENT_STATE_VAR
-    ret = (rule != ACCEPT_STATE)
-    
-    if (ret) {
-        output_line("if (NF < 2) " NO_DATA_ERR_FNAME "(next_state)", tabs)
-        output_line("else " sm_var " = next_state", tabs)
-    }
-    
+function out_state_change(tabs) {
+    out_line(sprintf("%s(%s)", SWITCH_FNAME, NEXT_STATE), tabs)
+}
+
+function out_data_check(rule, tabs,    ret) {
+    if (ret = !rule_is_accept(rule))
+        out_line(sprintf("%s(%s)", CHECK_SWITCH_FNAME, NEXT_STATE), tabs)
     return ret
 }
 
-function output_first(arr_input,    sm_var, tmp) {
-    sm_var = CURRENT_STATE_VAR
+function out_first(    first_rule, tmp) {
+    out_open_if(sprintf("%s == \"\"", CURRENT_STATE_VAR_NAME), 1)
     
-    output_open_if(sm_var " == \"\"", 1)
+        first_rule = in_get_rule_name(1)
+        tmp = out_get_rule_name(first_rule)
         
-        tmp = output_get_rule_name(arr_input[1])
-        output_open_if("next_state == " tmp, 2)
-            if (!output_data_check(arr_input[1], 3)) 
-                output_line(sm_var " = next_state", 3)
-        output_close_block(2)
-        output_line("else " PARSE_ERR_FNAME "(" tmp ", next_state)", 2)
+        out_string(sprintf("if (%s == %s) ", NEXT_STATE, tmp), 2)
+            if (!out_data_check(first_rule))
+                out_state_change()
+        out_line(sprintf("else %s(%s, %s)", PARSE_ERR_FNAME, tmp, NEXT_STATE),
+            2)
         
-    output_close_block(1)
+    out_close_block(1)
 }
 
-function output_three(arr_input,    sm_var, tmp) {
-    sm_var = CURRENT_STATE_VAR
-    
-    tmp = output_get_rule_name(arr_input[1])
-    output_open_else_if(sm_var " == " tmp, 1)
+function out_next(rule,    i, end, tmp, tmp2, tmp3, err_str) {
+    tmp = out_get_rule_name(rule)
+    out_open_else_if(sprintf("%s == %s", CURRENT_STATE_VAR_NAME, tmp), 1)
         
-    tmp = output_get_rule_name(arr_input[3])
-    output_open_if("next_state == " tmp, 2)
-        if (!output_data_check(arr_input[3], 3)) 
-           output_line(sm_var " = next_state", 3)
-    output_close_block(2)
-}
-
-function output_end_three(arr_input,    tmp) {
-    tmp = output_get_rule_name(arr_input[3])
-    output_line("else " PARSE_ERR_FNAME "(" tmp ", next_state)", 2)
-}
-
-function output_five(arr_input,    sm_var, tmp) {
-    sm_var = CURRENT_STATE_VAR
-
-    output_three(arr_input)
-    tmp = output_get_rule_name(arr_input[5])
-    output_open_else_if("next_state == " tmp, 2)
-        
-        if (!output_data_check(arr_input[5], 3)) 
-            output_line(sm_var " = next_state", 3)
+        err_str = ""
+        end = in_get_rule_flw_num(rule)
+        for (i = 1; i <= end; ++i) {
+            tmp = in_get_rule_flw(rule, i)
+            tmp2 = out_get_rule_name(tmp)
             
-    output_close_block(2)
-}
-
-function output_end_five(arr_input) {
-    output_string("else " PARSE_ERR_FNAME "(", 2)
-    output_string(output_get_rule_name(arr_input[3]))s
-    output_string(" \"' or '\" " output_get_rule_name(arr_input[5]))
-    output_line(", next_state)")
-}
-
-function output_state_machine(    i, lines, fields, sm_var, arr_input) {    
-    sm_var = CURRENT_STATE_VAR
-    
-    output_open_tag(TAG_STATE_MACHINE)
-    output_error_raise()
-    output_parse_error()
-    output_no_data_error()
-    output_open_function(STATE_TRANSITION_FNAME, "next_state")
-    
-    fields = split(input_get_line(1), arr_input)
-    output_first(arr_input)
-    
-    lines = input_get_line_count()
-    for (i = 1; i <= lines; ++i) {
-        fields = split(input_get_line(i), arr_input)
-        
-        if (fields == 3) {
-            output_three(arr_input)
-            output_end_three(arr_input)
-        }
-        else if (fields == 5) {
-            output_five(arr_input)
-            output_end_five(arr_input)
+                tmp3 = (i == 1) ? "if (%s == %s) " : "else if (%s == %s) "
+                out_string(sprintf(tmp3, NEXT_STATE, tmp2), 2)
+                
+                    if (!out_data_check(tmp))
+                        out_state_change()
+                        
+            err_str = (!err_str) ? tmp2 : err_str "\"|\"" tmp2
         }
         
-        output_close_block(1)
-    }
-    
-    output_close_block(0)
-    output_close_tag(TAG_STATE_MACHINE)
+        out_line(\
+            sprintf("else %s(%s, %s)", PARSE_ERR_FNAME, err_str, NEXT_STATE), 2)
+    out_close_block(1)
 }
 
-function output_rules(    i, end, arr, fields) {
-    output_open_tag(TAG_INPUT)
-    printf("$0 ~ /^[[:space:]]*#/ {next} # match comments\n")
+function out_state_machine(    i, end) {    
+    out_open_tag(TAG_STATE_MACHINE)
+    out_error_raise()
+    out_parse_error()
+    out_switch()
+    out_check_switch()
+    out_open_function(STATE_TRANSITION_FNAME, NEXT_STATE)
     
-    end = input_get_line_count()
+    out_first()
+    
+    end = in_get_num_rules()
+    for (i = 1; i <= end; ++i)
+        out_next(in_get_rule_name(i))
+
+    out_close_block(0)
+    out_close_tag(TAG_STATE_MACHINE)
+}
+
+function out_rules(    i, end, tmp) {
+    out_open_tag(TAG_INPUT)
+    end = in_get_num_rules()
     for (i = 1; i <= end; ++i) {
-        fields = split(input_get_line(i), arr)
-        output_line("$1 ~ " output_get_rule_name(arr[1]) " {"\
+        tmp = in_get_rule_name(i)
+        out_line("$1 == " out_get_rule_name(tmp) " {"\
             STATE_TRANSITION_FNAME "($1); "\
-            output_get_handler_name(arr[1]) "(); next}")
+            out_get_handler_name(tmp) "(); next}")
     }
     
-    output_line("$0 ~ /^[[:space:]]*$/ {next} # ignore empty lines")
-    output_line("{" ERROR_RAISE_FNAME "(\"'\" $1 \"' unknown\")}")
-    output_close_tag(TAG_INPUT)
+    out_line("$0 ~ /^[[:space:]]*$/ {next} # ignore empty lines")
+    out_line("$0 ~ /^[[:space:]]*#/ {next} # ignore comments")
+    out_line(sprintf("{%s(\"'\" $1 \"' unknown\")} # all else is error",
+        ERROR_RAISE_FNAME))
+    out_close_tag(TAG_INPUT)
 }
 
-function output_begin(    i, end, arr) {
-    end = input_get_line_count()
+function out_begin(    i, end, tmp) {
+    end = in_get_num_rules()
     
-    output_open_tag(TAG_START)
-    output_line("BEGIN {")
+    out_open_tag(TAG_START)
+    out_line("BEGIN {")
     for (i = 1; i <= end; ++i) {
-        split(input_get_line(i), arr)
-        output_line(output_get_rule_name(arr[1]) " = \"" arr[1] "\"", 1)
+        tmp = in_get_rule_name(i)
+        out_line(out_get_rule_name(tmp) " = \"" tmp "\"", 1)
     }
     
-    output_line(GLOBAL_ERR_FLAG " = 0", 1)
-    output_line(AWK_BEGIN "()", 1)
-    output_close_block()
-    output_close_tag(TAG_START)
+    out_line(GLOBAL_ERR_FLAG " = 0", 1)
+    out_line(AWK_BEGIN "()", 1)
+    out_close_block()
+    out_close_tag(TAG_START)
 }
 
-function output_end(    tmp) {
-    output_open_tag(TAG_END)
-    output_line("END {")
-    output_open_if("!" GLOBAL_ERR_FLAG, 1)
+function out_end(    tmp) {
+    out_open_tag(TAG_END)
+    out_line("END {")
+    out_open_if("!" GLOBAL_ERR_FLAG, 1)
         
-        tmp = output_get_rule_name(ACCEPT_STATE)
-        output_line("if (" CURRENT_STATE_VAR " != " tmp ")", 2)
-            output_line(ERROR_RAISE_FNAME\
-                "(\"file should end with '\" " tmp " \"'\")", 3)
-            output_line("else",2)
-                output_line( AWK_END "()", 3)
-        output_close_block(1)
-    output_close_block()
-    output_close_tag(TAG_END)
+        tmp = out_get_rule_name(rule_get_accept())
+        
+        out_line(sprintf("if (%s != %s)", CURRENT_STATE_VAR_NAME, tmp), 2)
+            out_line(sprintf("%s(%s)",
+                ERROR_RAISE_FNAME,
+                "sprintf(\"file should end with '%s'\"), " tmp), 3)
+        out_line("else",2)
+                out_line( AWK_END "()", 3)
+        out_close_block(1)
+    out_close_block()
+    out_close_tag(TAG_END)
+}
+
+function out_source(    i, end) {
+    out_open_tag(TAG_USER_SOURCE)
+    end = in_get_line_num()
+    for (i = 1; i <= end; ++i)
+        out_line(sprintf("# %s", in_get_line(i)))
+    out_close_tag(TAG_USER_SOURCE)
 }
 # </output>
 
-# <finish>
-END {
-    if (error_happened()) 
-        exit(1)
-    else
-        output_all()
-}
-# </finish>
-
 # <start>
-function start_should_print_tags() {return awk_print_tags == YES}
-function start_set_awk_print_tags() {
-    if (awk_print_tags == "")
-        awk_print_tags = YES
-
-    if (awk_print_tags != YES && awk_print_tags != NO) {
-        print ERROR "unknown value '" awk_print_tags "'"
-        print "syntax: -v awk_print_tags=<\"" YES "\"/\"" NO "\">"
-        error_raise()
-        exit(1)
-    }
-}
-
-BEGIN {
-    WORD_RE = "^[[:alpha:]_][[:alnum:]_]*$"
-    ARROW_RE = "^->$"
-    ARROW_STR = "->"
-    BAR_RE = "^\\|$"
-    BAR_STR = "->"
-    ERROR = "error: "
+BEGIN {    
+    RL_ARROW = "->"
+    RL_BAR = "|"
+    RL_REGX = "^[_[:alpha:]][_[:alnum:]]*$"
+    RL_MEM_FOLLOW = "follow"
+    RL_MEM_FLW_NUM = "num_of_follows"
+    RL_LINE = "line"
+    
     TAG_START = "start"
     TAG_INPUT = "input"
     TAG_END = "end"
@@ -546,27 +435,43 @@ BEGIN {
     TAG_USER_EVENTS = "user_events"
     TAG_PRINT_LIB = "print_lib"
     TAG_UTILS = "utils"
+    TAG_USER_SOURCE = "user_source"
     AWK_BEGIN = "awk_BEGIN"
     AWK_END = "awk_END"
     
+    NEXT_STATE = "__next"
+    CURRENT_STATE_VAR_NAME = "__state"
     STATE_TRANSITION_FNAME = "__state_transition"
+    GLOBAL_ERR_FLAG = "__error_happened"
     PARSE_ERR_FNAME = "__parse_error"
-    NO_DATA_ERR_FNAME = "__no_data_error"
+    CHECK_SWITCH_FNAME = "__check_switch"
+    SWITCH_FNAME = "__switch"
     ERROR_RAISE_FNAME = "__error_raise"
-    GLOBAL_ERR_FLAG = "__error_happened__"
-    CURRENT_STATE_VAR = "__sm_now__"
-    ACCEPT_STATE = ""
-    
-    ERR_BAD_NF = 0
-    ERR_NO_ARROW = 1
-    ERR_NO_BAR = 2
-    ERR_BAD_RULE = 3
-    
-    YES = "yes"
-    NO = "no"
     
     PROG_NAME = "scriptscript"
-    VERSION = "v1.02"
-    start_set_awk_print_tags()
+    VERSION = "v2.0"
 }
 # </start>
+
+# <end>
+function check_all_flw_defined(    i, end, j, jend, rule, flw) {
+    end = in_get_num_rules()
+    for (i = 1; i <= end; ++i) {
+        rule = in_get_rule_name(i)
+        jend = in_get_rule_flw_num(rule)
+        for (j = 1; j <= jend; ++j) {
+            flw = in_get_rule_flw(rule, j)
+            if (!rule_is_defined(flw))
+                error(sprintf("'%s' rule undefined", flw),
+                    in_get_rule_line(rule))
+        }
+    }
+}
+
+END {
+    if (!error_happened()) {
+        check_all_flw_defined()
+        out_all()
+    }
+}
+# </end>

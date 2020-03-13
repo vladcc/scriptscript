@@ -25,7 +25,7 @@ function handle_match_how() {
     else if ($2 == MATCH_HOW_LT_SRC)
         $2 = MATCH_HOW_LT_NAME
     else 
-        input_error("unknown match_how: '" $2 "'")  
+        input_error("unknown match_how: '" $2 "'")
         
 	save_match_how($2)
 }
@@ -186,47 +186,26 @@ function awk_END() {
     print_line("}")
 }
 
-function input_error(error_msg) {
+function in_error(error_msg) {
 	__error_raise(error_msg)
 }
 # </user_events>
 
 # <print_lib>
-function print_set_indent(tabs) {
-	__base_indent__ = tabs
-}
-
-function print_get_indent() {
-	return __base_indent__
-}
-
-function print_inc_indent() {
-	print_set_indent(print_get_indent()+1)
-}
-
-function print_dec_indent() {
-	print_set_indent(print_get_indent()-1)
-}
-
+function print_set_indent(tabs) {__base_indent__ = tabs}
+function print_get_indent() {return __base_indent__}
+function print_inc_indent() {print_set_indent(print_get_indent()+1)}
+function print_dec_indent() {print_set_indent(print_get_indent()-1)}
+function print_string(str, tabs) {print_tabs(tabs); printf(str)}
+function print_line(str, tabs) {print_string(str, tabs); print_new_lines(1)}
 function print_tabs(tabs,    i, end) {
 	end = tabs + print_get_indent()
 	for (i = 1; i <= end; ++i)
 		printf("\t")
 }
-
 function print_new_lines(new_lines,    i) {
 	for (i = 1; i <= new_lines; ++i)
 		printf("\n")
-}
-
-function print_string(str, tabs) {
-	print_tabs(tabs)
-	printf(str)
-}
-
-function print_line(str, tabs) {
-	print_string(str, tabs)
-	print_new_lines(1)
 }
 # </print_lib>
 
@@ -258,97 +237,89 @@ function reset_match_how() {delete __match_how_arr__; __match_how_num__ = 0}
 
 # <state_machine>
 function __error_raise(error_msg) {
-	print "error: " FILENAME ", line " FNR ": " error_msg
-	__error_happened__ = 1
+	printf("error: %s, line %d: %s\n",        FILENAME, FNR, error_msg)
+	__error_happened = 1
 	exit(1)
 }
-function __parse_error(expected, got) {
-	__error_raise("'" expected "' expected, but got '" got "' instead")
+function __parse_error(expct, got) {
+	__error_raise(sprintf("'%s' expected, but got '%s' instead", expct, got))
 }
-function __no_data_error(what) {
-	__error_raise("no data after '" what "'")
+function __switch(__next) {
+	__state = __next
 }
-function __state_transition(next_state) {
-	if (__sm_now__ == "") {
-		if (next_state == __RULE_FNAME__) {
-			if (NF < 2) __no_data_error(next_state)
-			else __sm_now__ = next_state
-		}
-		else __parse_error(__RULE_FNAME__, next_state)
+function __check_switch(__next) {
+	if (NF < 2) __error_raise(sprintf("no data after '%s'", __next))
+	else __switch(__next)
+}
+function __state_transition(__next) {
+	if (__state == "") {
+		if (__next == __R_FNAME) __check_switch(__next)
+		else __parse_error(__R_FNAME, __next)
 	}
-	else if (__sm_now__ == __RULE_FNAME__) {
-		if (next_state == __RULE_INPUT__) {
-			if (NF < 2) __no_data_error(next_state)
-			else __sm_now__ = next_state
-		}
-		else __parse_error(__RULE_INPUT__, next_state)
+	else if (__state == __R_FNAME) {
+		if (__next == __R_INPUT) __check_switch(__next)
+		else __parse_error(__R_INPUT, __next)
 	}
-	else if (__sm_now__ == __RULE_INPUT__) {
-		if (next_state == __RULE_MATCH_WITH__) {
-			if (NF < 2) __no_data_error(next_state)
-			else __sm_now__ = next_state
-		}
-		else __parse_error(__RULE_MATCH_WITH__, next_state)
+	else if (__state == __R_INPUT) {
+		if (__next == __R_MATCH_WITH) __check_switch(__next)
+		else __parse_error(__R_MATCH_WITH, __next)
 	}
-	else if (__sm_now__ == __RULE_MATCH_WITH__) {
-		if (next_state == __RULE_MATCH_HOW__) {
-			if (NF < 2) __no_data_error(next_state)
-			else __sm_now__ = next_state
-		}
-		else __parse_error(__RULE_MATCH_HOW__, next_state)
+	else if (__state == __R_MATCH_WITH) {
+		if (__next == __R_MATCH_HOW) __check_switch(__next)
+		else __parse_error(__R_MATCH_HOW, __next)
 	}
-	else if (__sm_now__ == __RULE_MATCH_HOW__) {
-		if (next_state == __RULE_INPUT__) {
-			if (NF < 2) __no_data_error(next_state)
-			else __sm_now__ = next_state
-		}
-		else if (next_state == __RULE_GENERATE__) {
-			__sm_now__ = next_state
-		}
-		else __parse_error(__RULE_INPUT__ "' or '" __RULE_GENERATE__, next_state)
+	else if (__state == __R_MATCH_HOW) {
+		if (__next == __R_INPUT) __check_switch(__next)
+		else if (__next == __R_GENERATE) __switch(__next)
+		else __parse_error(__R_INPUT"|"__R_GENERATE, __next)
 	}
-	else if (__sm_now__ == __RULE_GENERATE__) {
-		if (next_state == __RULE_FNAME__) {
-			if (NF < 2) __no_data_error(next_state)
-			else __sm_now__ = next_state
-		}
-		else __parse_error(__RULE_FNAME__, next_state)
+	else if (__state == __R_GENERATE) {
+		if (__next == __R_FNAME) __check_switch(__next)
+		else __parse_error(__R_FNAME, __next)
 	}
 }
 # </state_machine>
 
 # <input>
-$0 ~ /^[[:space:]]*#/ {next} # match comments
-$1 ~ __RULE_FNAME__ {__state_transition($1); handle_fname(); next}
-$1 ~ __RULE_INPUT__ {__state_transition($1); handle_input(); next}
-$1 ~ __RULE_MATCH_WITH__ {__state_transition($1); handle_match_with(); next}
-$1 ~ __RULE_MATCH_HOW__ {__state_transition($1); handle_match_how(); next}
-$1 ~ __RULE_GENERATE__ {__state_transition($1); handle_generate(); next}
+$1 == __R_FNAME {__state_transition($1); handle_fname(); next}
+$1 == __R_INPUT {__state_transition($1); handle_input(); next}
+$1 == __R_MATCH_WITH {__state_transition($1); handle_match_with(); next}
+$1 == __R_MATCH_HOW {__state_transition($1); handle_match_how(); next}
+$1 == __R_GENERATE {__state_transition($1); handle_generate(); next}
 $0 ~ /^[[:space:]]*$/ {next} # ignore empty lines
-{__error_raise("'" $1 "' unknown")}
+$0 ~ /^[[:space:]]*#/ {next} # ignore comments
+{__error_raise("'" $1 "' unknown")} # all else is error
 # </input>
 
 # <start>
 BEGIN {
-	__RULE_FNAME__ = "fname"
-	__RULE_INPUT__ = "input"
-	__RULE_MATCH_WITH__ = "match_with"
-	__RULE_MATCH_HOW__ = "match_how"
-	__RULE_GENERATE__ = "generate"
-	__error_happened__ = 0
+	__R_FNAME = "fname"
+	__R_INPUT = "input"
+	__R_MATCH_WITH = "match_with"
+	__R_MATCH_HOW = "match_how"
+	__R_GENERATE = "generate"
+	__error_happened = 0
 	awk_BEGIN()
 }
 # </start>
 
 # <end>
 END {
-	if (!__error_happened__) {
-		if (__sm_now__ != __RULE_GENERATE__)
-			__error_raise("file should end with '" __RULE_GENERATE__ "'")
+	if (!__error_happened) {
+		if (__state != __R_GENERATE)
+			__error_raise(sprintf("file should end with '%s'"), __R_GENERATE)
 		else
 			awk_END()
 	}
 }
 # </end>
 
-# generated by scriptscript v1.02
+# <user_source>
+# fname -> input
+# input -> match_with
+# match_with -> match_how
+# match_how -> input | generate
+# generate -> fname
+# </user_source>
+
+# generated by scriptscript v2.0
