@@ -4,7 +4,7 @@
 # for version look at the VERSION variable
 # Author: Vladimir Dinev
 # vld.dinev@gmail.com
-# 2020-03-13
+# 2020-03-15
 
 # <error_handling>
 function error_raise() {LG_err_happened = 1}
@@ -402,7 +402,7 @@ function out_end(    tmp) {
         out_line(sprintf("if (%s != %s)", CURRENT_STATE_VAR_NAME, tmp), 2)
             out_line(sprintf("%s(%s)",
                 ERROR_RAISE_FNAME,
-                "sprintf(\"file should end with '%s'\"), " tmp), 3)
+                "sprintf(\"file should end with '%s'\", " tmp ")"), 3)
         out_line("else",2)
                 out_line( AWK_END "()", 3)
         out_close_block(1)
@@ -449,7 +449,7 @@ BEGIN {
     ERROR_RAISE_FNAME = "__error_raise"
     
     PROG_NAME = "scriptscript"
-    VERSION = "v2.0"
+    VERSION = "v2.01"
 }
 # </start>
 

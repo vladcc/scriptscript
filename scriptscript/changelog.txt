@@ -11,3 +11,7 @@ print_inc_indent() and print_dec_indent() added
 2020-03-13
 v2.0
 arbitrary number of follow rules now supported
+
+2020-03-15
+v2.01
+fixed sprintf eof error message syntax
