@@ -15,3 +15,8 @@ arbitrary number of follow rules now supported
 2020-03-15
 v2.01
 fixed sprintf eof error message syntax
+
+2020-03-21
+v2.1
+data and last rule check moved in user handlers
+data_or_err(), reset_all(), get_last_rule() introduced in the utils lib

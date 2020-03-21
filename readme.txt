@@ -1,27 +1,27 @@
 What's this and what does it do?
 
-It's an awk script which generates a parser which is an awk script intended to 
-generate code by following user specified grammar rules for a very simple
-grammar.
+It's an awk script which reads a list of rules and outputs a line oriented
+parser. The parser makes sure the order of the rules is followed, and that each
+rule has data associated with it. The last rule of the input file must be the
+last rule declared. Note that his is intentionally enforced by checks in the
+user API, so it can be easily changed. 
 
-scriptscript reads a list of rules and outputs a line oriented parser. The
-parser makes sure the order of the rules is followed, and that each rule, except
-the last, has data associated with it. The syntax for the rules is in the form
-of:
+The syntax for the rules is in the form of:
 
-A -> B
-# {} means zero or more
 A -> B {| C}
 
-where A, B, and C are rule names (which can be the same name), the '->' is read
+where {} means zero or more
+
+A, B, and C are rule names (any of which can be the same name), the '->' is read
 as 'is followed by', and  the '|' is read as 'or' Lines beginning with a '#' are
 comments and empty lines are ignored. Note that comments can only be alone on a
 line, not placed after code. Rule names must start with a letter or an
 underscore, followed by zero or more letters, numbers, or underscores.
 The rules used to generate the parser can be found at the end of the generated
-file. Function and variable names starting with two underscores are reserved.
+script. Function and variable names starting with two underscores are reserved.
 
-As an example:
+As an example, with:
+
 ---------------------------
 # fname - function name
 # input - the input value for the function specified by fname
@@ -36,8 +36,8 @@ match_how -> input | generate
 generate -> fname
 ---------------------------
 
-With this input, scriptscript generates a parser which recognizes files with
-the following structure:
+this input, scriptscript generates a parser which recognizes files with the
+following structure:
 
 ---------------------------
 # function name
@@ -58,25 +58,20 @@ match_how <something>
 generate
 ---------------------------
 
-The same rules about comments and empty lines are valid in the generated parser.
-The <something> part is your data.
+The same rules about comments and empty lines are the same in the generated
+parser as well.
 
-The parser has a function called handle_<rule-name>() for each rule,
+The generated parser has a function called handle_<rule-name>() for each rule,
 which is called when a line starting with that rule is read. Also, there are
 functions called save_<rule-name>(), get_<rule-name>_count(),get_<rule-name>(n),
 and reset_<rule-name>() for each rule. They let you save the data of the rule,
 get the number of rules read, get the data for rule number n, and delete all
-rules of type <rule-name>, zeroing the counter, respectively. These exist for
-each rule, except the last, and save_<rule-name>() is called by default in each
-rule handler. The last rule is special because its purpose is to mark endpoints
-between different rule structures. In the example, the user can generate their
-code in handle_generate() without having to write much else.
+rules of type <rule-name>, zeroing the counter, respectively.
 
-The generated parser provides functions called awk_BEGIN() and awk_END(),
-which are called at BEGIN {} and END {} respectively. If an error has occurred
-during processing, awk_END() is not executed. The user can raise an error with
-input_error(error_msg) 
-A library for easier output is provided for convenience:
+Functions called awk_BEGIN() and awk_END(), which are called at BEGIN {} and
+END {} are also provided. If an error has occurred during processing,
+awk_END() is not executed. The user can raise an error with the in_error()
+function. The following output library is also provided:
 
 print_set_indent(tabs) - Sets the current indentation to a 'tabs' number of
 tabs. This indentation is printed before every string printed through the
