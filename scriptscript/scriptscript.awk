@@ -4,7 +4,7 @@
 # for version look at the VERSION variable
 # Author: Vladimir Dinev
 # vld.dinev@gmail.com
-# 2020-03-21
+# 2020-04-07
 
 # <error_handling>
 function error_raise() {LG_err_happened = 1}
@@ -93,7 +93,7 @@ $0 ~ /^[[:space:]]*#/ {next} # comments
 
 # <output>
 function out_tabs(n,    i) {for (i = 0; i < n; ++i) printf("\t")}
-function out_string(str, tabs) {out_tabs(tabs); printf(str)}
+function out_string(str, tabs) {out_tabs(tabs); printf("%s", str)}
 function out_line(str, tabs) {out_tabs(tabs); print str}
 function out_open_else(tabs) {out_line("else {", tabs)}
 function out_close_block(tabs) {out_line("}", tabs)}
@@ -190,7 +190,7 @@ function out_print_lib() {
     out_line(sprintf("%s %s() {%s(%s()-1)}",
         FUNCT, PRINT_DEC_INDENT, PRINT_SET_INDENT, PRINT_GET_INDENT))
     
-    out_line(sprintf("%s %s(str, tabs) {%s(tabs); printf(str)}",
+    out_line(sprintf("%s %s(str, tabs) {%s(tabs); printf(\"%%s\", str)}",
         FUNCT, PRINT_STRING, PRINT_TAB))
     
     out_line(sprintf("%s %s(str, tabs) {%s(str, tabs); %s(1)}",
@@ -278,7 +278,7 @@ function out_divide(    i, end) {
 function out_error_raise() {
     out_open_function(ERROR_RAISE_FNAME, "error_msg")
     out_line("printf(\"error: %s, line %d: %s\\n\", "\
-        "FILENAME, FNR, error_msg)", 1)
+        "FILENAME, FNR, error_msg) > \"/dev/stderr\"", 1)
     out_line(GLOBAL_ERR_FLAG " = 1", 1)
     out_line("exit(1)", 1)
     out_close_block()
@@ -428,7 +428,7 @@ BEGIN {
     IN_ERROR_FNAME = "in_error"
     
     PROG_NAME = "scriptscript"
-    VERSION = "v2.1"
+    VERSION = "v2.11"
 }
 # </start>
 

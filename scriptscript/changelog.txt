@@ -20,3 +20,8 @@ fixed sprintf eof error message syntax
 v2.1
 data and last rule check moved in user handlers
 data_or_err(), reset_all(), get_last_rule() introduced in the utils lib
+
+2020-04-07
+v2.11
+error message function prints to "/dev/stderr"
+printf("%s", str) instead of printf(str) so user doesn't have to type %%
