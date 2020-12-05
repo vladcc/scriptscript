@@ -1,27 +1,43 @@
 2019-11-03
-v1.01
+scriptscript.awk v1.01
 __error_raise() now takes only an error_msg without a line number. Error
 messages print the name of the file and FNR is used instead of NR in both
 scriptscript and the generated parser.
 
 2020-02-25
-v1.02
+scriptscript.awk v1.02
 print_inc_indent() and print_dec_indent() added
 
 2020-03-13
-v2.0
+scriptscript.awk v2.0
 arbitrary number of follow rules now supported
 
 2020-03-15
-v2.01
+scriptscript.awk v2.01
 fixed sprintf eof error message syntax
 
 2020-03-21
-v2.1
+scriptscript.awk v2.1
 data and last rule check moved in user handlers
 data_or_err(), reset_all(), get_last_rule() introduced in the utils lib
 
 2020-04-07
-v2.11
+scriptscript.awk v2.11
 error message function prints to "/dev/stderr"
 printf("%s", str) instead of printf(str) so user doesn't have to type %%
+
+2020-12-06
+scriptscript.awk v2.2
+scriptscript.awk now requires -vScriptName, -vScriptVersion, and an input file
+scriptscript.awk use message, -vHelp, and -vVersion added
+scriptscript.awk refactored - constants are now functions, better names, etc.
+tests/ added
+example/run_test.sh added
+The generated scripts now provides stdout and stderr redirection as well as
+default help and version messages.
+Both scriptscript and the generated scripts (by default) take exactly one file
+as input. There are several user_api additions and changes. Generated script
+user api backwards compatibility is broken:
+print_{line,str}() renamed to print_ind_{line,str}()
+handle_<rule> renamed to on_<rule>
+awk_{BEGIN,END} renamed to on_{BEGIN,END}

@@ -3,7 +3,7 @@ What's this and what does it do?
 It's an awk script which reads a list of rules and outputs a line oriented
 parser. The parser makes sure the order of the rules is followed, and that each
 rule has data associated with it. The last rule of the input file must be the
-last rule declared. Note that his is intentionally enforced by checks in the
+last rule declared. Note that this is intentionally enforced by checks in the
 user API, so it can be easily changed. 
 
 The syntax for the rules is in the form of:
