@@ -4,7 +4,7 @@
 # for version look at SCRIPT_VERSION()
 # Author: Vladimir Dinev
 # vld.dinev@gmail.com
-# 2020-04-07
+# 2020-12-06
 
 function SCRIPT_NAME() {return "scriptscript.awk"}
 function SCRIPT_VERSION() {return "2.2"}

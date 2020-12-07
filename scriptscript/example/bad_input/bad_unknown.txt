@@ -1,0 +1,6 @@
+fname intsqrt
+input 16
+match_with 4
+random
+match_how ==
+#generate
