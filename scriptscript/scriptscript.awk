@@ -4,10 +4,10 @@
 # for version look at SCRIPT_VERSION()
 # Author: Vladimir Dinev
 # vld.dinev@gmail.com
-# 2020-12-06
+# 2020-12-07
 
 function SCRIPT_NAME() {return "scriptscript.awk"}
-function SCRIPT_VERSION() {return "2.2"}
+function SCRIPT_VERSION() {return "2.21"}
 
 # <error_handling>
 function error_bad_stx_msg(rule) {
@@ -194,8 +194,6 @@ function out_user_api() {
 	out_line()
 	out_user_exit()
 	out_line()
-	out_user_messages()
-	out_line()
 	out_utils()
 	
 	out_close_user_api()
@@ -222,6 +220,8 @@ function out_user_events(	  str, i, end) {
 	out_user_events_begin()
 	out_line()
 	out_user_events_end()
+	out_line()
+	out_user_messages()
 	
 	out_user_events_close()
 }
@@ -292,6 +292,9 @@ function USER_PRINT_STDOUT() {return sprintf("%s_stdout", PRINT())}
 function USER_PRINT_STDERR() {return sprintf("%s_stderr", PRINT())}
 function USER_PRINT_SET_OUT() {return sprintf("%s_set_stdout", PRINT())}
 function USER_PRINT_SET_ERR() {return sprintf("%s_set_stderr", PRINT())}
+function USER_PRINT_GET_OUT() {return sprintf("%s_get_stdout", PRINT())}
+function USER_PRINT_GET_ERR() {return sprintf("%s_get_stderr", PRINT())}
+
 
 function out_user_print() {
 	
@@ -338,6 +341,11 @@ function out_user_print() {
 		GP_PRINT_SET_OUT()))
 	out_fline(USER_PRINT_SET_ERR(), "str", sprintf("%s(str)",
 		GP_PRINT_SET_ERR()))
+	
+	out_fline(USER_PRINT_GET_OUT(), "", sprintf("return %s()",
+		GP_PRINT_GET_OUT()))
+	out_fline(USER_PRINT_GET_ERR(), "", sprintf("return %s()",
+		GP_PRINT_GET_ERR()))
 	
 	out_close_tag(USER_PRINT_TAG())
 }

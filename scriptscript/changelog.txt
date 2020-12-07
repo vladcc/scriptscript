@@ -41,3 +41,9 @@ user api backwards compatibility is broken:
 print_{line,str}() renamed to print_ind_{line,str}()
 handle_<rule> renamed to on_<rule>
 awk_{BEGIN,END} renamed to on_{BEGIN,END}
+
+2020-12-07
+scriptscript.awk v2.21
+print_get_{stdout,stderr}() added
+<user_messages> now moved into <user_events> 
+gen_example.sh added

@@ -209,4 +209,45 @@ function on_END() {
     print_dec_indent()
     print_ind_line("}")
 }
+
+# <user_messages>
+function use_str() {
+	return sprintf("Use: %s <input-file>", SCRIPT_NAME())
+}
+
+function print_use_try() {
+	print_puts_err(use_str())
+	print_puts_err(sprintf("Try '%s -vHelp=1' for more info", SCRIPT_NAME()))
+	exit_failure()
+}
+
+function print_version() {
+	print_puts(sprintf("%s %s", SCRIPT_NAME(), SCRIPT_VERSION()))
+	exit_success()
+}
+
+function print_help() {
+print sprintf("--- %s %s ---", SCRIPT_NAME(), SCRIPT_VERSION())
+print use_str()
+print "A line oriented state machine parser."
+print ""
+print "Options:"
+print "-vVersion=1 - print version"
+print "-vHelp=1    - print this screen"
+print ""
+print "Rules:"
+print "'->' means 'must be followed by'"
+print "'|'  means 'or'"
+print "Each line of the input file must begin with a rule."
+print "The rules must appear in the below order of definition."
+print "Empty lines and lines which start with '#' are ignored."
+print ""
+print "fname -> input"
+print "input -> match_with"
+print "match_with -> match_how"
+print "match_how -> input | generate"
+print "generate -> fname"
+	exit_success()
+}
+# </user_messages>
 # </user_events>
