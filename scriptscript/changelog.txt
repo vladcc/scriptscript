@@ -47,3 +47,7 @@ scriptscript.awk v2.21
 print_get_{stdout,stderr}() added
 <user_messages> now moved into <user_events> 
 gen_example.sh added
+
+2021-03-20
+scriptscript.awk v2.211
+switch places for -vVersion and -vHelp in user messages

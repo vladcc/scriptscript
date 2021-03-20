@@ -4,10 +4,10 @@
 # for version look at SCRIPT_VERSION()
 # Author: Vladimir Dinev
 # vld.dinev@gmail.com
-# 2020-12-07
+# 2021-03-20
 
 function SCRIPT_NAME() {return "scriptscript.awk"}
-function SCRIPT_VERSION() {return "2.21"}
+function SCRIPT_VERSION() {return "2.211"}
 
 # <error_handling>
 function error_bad_stx_msg(rule) {
@@ -415,8 +415,8 @@ out_line(sprintf("print %s()", USER_MESSAGES_USE_STR()))
 out_line("print \"A line oriented state machine parser.\"")
 out_line("print \"\"")
 out_line("print \"Options:\"")
-out_line(sprintf("print \"-v%s=1 - print version\"", VER_STR()))
 out_line(sprintf("print \"-v%s=1    - print this screen\"", HELP_STR()))
+out_line(sprintf("print \"-v%s=1 - print version\"", VER_STR()))
 out_line("print \"\"")
 out_line("print \"Rules:\"")
 out_line("print \"'->' means 'must be followed by'\"")
@@ -964,7 +964,7 @@ function use_str() {
 
 function print_use_try() {
 	print_stderr(use_str())
-	print_stderr(sprintf("Try '%s -vHelp=1' for help", SCRIPT_NAME()))
+	print_stderr(sprintf("Try '%s -v%s=1' for help", SCRIPT_NAME(), HELP_STR()))
 	exit_failure()
 }
 
@@ -980,8 +980,8 @@ print sprintf("-v%s=<version> - the version of the generated script",
 	VSCRIPT_VER())
 print ""
 print "Options:"
-print sprintf("-v%s=1 - print this script version", VER_STR())
 print sprintf("-v%s=1    - print this screen", HELP_STR())
+print sprintf("-v%s=1 - print this script version", VER_STR())
 	exit_success()
 }
 
