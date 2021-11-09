@@ -1,3 +1,8 @@
+!!!NOTE!!! This project is superseded by:
+https://github.com/vladcc/shawk/tree/main/shawk/awk/smpg
+
+
+
 This is an awk script which reads a list of rules and outputs a line oriented
 parser. The parser makes sure the rules appear in the input (as the first field)
 in the same order in which they were defined. The user is in control if what
